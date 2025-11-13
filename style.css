@@ -1,14 +1,14 @@
 :root {
-  color-scheme: dark;
-  --bg: #1a0813;
-  --surface: rgba(56, 19, 41, 0.82);
-  --surface-strong: rgba(56, 19, 41, 0.95);
-  --accent: #e07bb6;
-  --accent-soft: rgba(251, 204, 231, 0.28);
-  --text: #f7edf4;
-  --muted: #f2bedc;
-  --danger: #f87171;
-  --success: #34d399;
+  color-scheme: light;
+  --bg: #fdf3fa;
+  --surface: rgba(255, 239, 247, 0.92);
+  --surface-strong: rgba(255, 232, 244, 0.96);
+  --accent: #e36cb6;
+  --accent-soft: rgba(227, 108, 182, 0.16);
+  --text: #2b0f23;
+  --muted: #85426b;
+  --danger: #e2556c;
+  --success: #3abf84;
   --radius: 18px;
   --transition: 0.3s ease;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -20,8 +20,8 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top, rgba(251, 204, 231, 0.38), transparent 45%),
-    radial-gradient(circle at bottom, rgba(224, 123, 182, 0.28), transparent 40%),
+  background: radial-gradient(circle at top, rgba(251, 204, 231, 0.7), transparent 55%),
+    radial-gradient(circle at bottom, rgba(227, 108, 182, 0.3), transparent 45%),
     var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -40,9 +40,10 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2rem;
-  background: rgba(32, 9, 24, 0.9);
+  background: rgba(255, 236, 246, 0.92);
   backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(224, 123, 182, 0.35);
+  border-bottom: 1px solid rgba(227, 108, 182, 0.22);
+  box-shadow: 0 12px 24px rgba(227, 108, 182, 0.1);
 }
 
 .brand {
@@ -95,7 +96,7 @@ a {
   padding: 2rem;
   border-radius: var(--radius);
   background: var(--surface-strong);
-  box-shadow: 0 30px 60px rgba(34, 6, 21, 0.45);
+  box-shadow: 0 26px 50px rgba(227, 108, 182, 0.18);
 }
 
 .hero-card h1 {
@@ -110,7 +111,7 @@ a {
 
 .predicted-grade {
   align-self: flex-start;
-  background: var(--accent-soft);
+  background: rgba(227, 108, 182, 0.12);
   color: var(--accent);
   padding: 1rem 1.5rem;
   border-radius: var(--radius);
@@ -125,8 +126,8 @@ a {
   background: var(--surface);
   border-radius: var(--radius);
   padding: 1.5rem;
-  box-shadow: 0 16px 40px rgba(34, 6, 21, 0.45);
-  border: 1px solid rgba(224, 123, 182, 0.2);
+  box-shadow: 0 20px 45px rgba(227, 108, 182, 0.16);
+  border: 1px solid rgba(227, 108, 182, 0.18);
 }
 
 .card-grid {
@@ -177,7 +178,7 @@ a {
   gap: 1rem;
   padding: 0.85rem 1rem;
   border-radius: calc(var(--radius) - 6px);
-  background: rgba(251, 204, 231, 0.12);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .list-item button.link {
@@ -193,8 +194,8 @@ a {
 
 .field-group input,
 .field-group select {
-  background: rgba(24, 12, 31, 0.65);
-  border: 1px solid rgba(224, 123, 182, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(227, 108, 182, 0.26);
   border-radius: 12px;
   padding: 0.75rem 0.9rem;
   color: var(--text);
@@ -205,7 +206,7 @@ a {
 .field-group select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(224, 123, 182, 0.35);
+  box-shadow: 0 0 0 3px rgba(227, 108, 182, 0.22);
 }
 
 .primary,
@@ -219,7 +220,7 @@ a {
 
 .primary {
   background: var(--accent);
-  color: #1a0916;
+  color: #fff;
   border: none;
   border-radius: 12px;
   padding: 0.75rem 1.4rem;
@@ -228,31 +229,31 @@ a {
 
 .primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(224, 123, 182, 0.35);
+  box-shadow: 0 12px 24px rgba(227, 108, 182, 0.3);
 }
 
 .secondary {
-  background: rgba(251, 204, 231, 0.16);
-  color: var(--text);
-  border: 1px solid rgba(224, 123, 182, 0.3);
+  background: rgba(227, 108, 182, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(227, 108, 182, 0.2);
   border-radius: 12px;
   padding: 0.7rem 1.3rem;
 }
 
 .secondary:hover {
-  background: rgba(224, 123, 182, 0.24);
+  background: rgba(227, 108, 182, 0.2);
 }
 
 .danger {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(226, 85, 108, 0.1);
   color: var(--danger);
-  border: 1px solid rgba(248, 113, 113, 0.4);
+  border: 1px solid rgba(226, 85, 108, 0.35);
   border-radius: 12px;
   padding: 0.7rem 1.3rem;
 }
 
 .danger:hover {
-  background: rgba(248, 113, 113, 0.2);
+  background: rgba(226, 85, 108, 0.2);
 }
 
 .link {
@@ -286,12 +287,12 @@ a {
   width: 100%;
   text-align: left;
   border: none;
-  background: rgba(251, 204, 231, 0.12);
+  background: rgba(255, 255, 255, 0.75);
 }
 
 .topic-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(10, 6, 14, 0.55);
+  box-shadow: 0 18px 32px rgba(227, 108, 182, 0.2);
 }
 
 .topic-card__header {
@@ -302,7 +303,7 @@ a {
 }
 
 .badge {
-  background: rgba(224, 123, 182, 0.18);
+  background: rgba(227, 108, 182, 0.18);
   color: var(--accent);
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
@@ -335,7 +336,7 @@ a {
 }
 
 .progress-card {
-  background: rgba(251, 204, 231, 0.12);
+  background: rgba(255, 255, 255, 0.75);
   border-radius: var(--radius);
   padding: 1.2rem;
 }
@@ -352,7 +353,7 @@ a {
   position: relative;
   width: 140px;
   height: 8px;
-  background: rgba(240, 168, 206, 0.25);
+  background: rgba(227, 108, 182, 0.18);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -381,7 +382,7 @@ a {
   width: 100%;
   height: 10px;
   border-radius: 999px;
-  background: rgba(240, 168, 206, 0.2);
+  background: rgba(227, 108, 182, 0.18);
 }
 
 .streak-fill {
@@ -399,14 +400,34 @@ a {
 }
 
 .warning {
-  border: 1px solid rgba(248, 113, 113, 0.25);
+  border: 1px solid rgba(226, 85, 108, 0.3);
 }
 
 .pastpaper-list li,
 .simple-list li {
-  background: rgba(251, 204, 231, 0.12);
+  background: rgba(255, 255, 255, 0.75);
   border-radius: calc(var(--radius) - 6px);
   padding: 0.85rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.simple-list li > div {
+  flex: 1;
+}
+
+.simple-list li.muted {
+  background: none;
+  padding: 0.25rem 0;
+  display: block;
+}
+
+.pastpaper-list li.muted {
+  background: none;
+  padding: 0.25rem 0;
+  display: block;
 }
 
 .actions {
@@ -418,7 +439,7 @@ a {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(32, 8, 26, 0.75);
+  background: rgba(247, 215, 231, 0.75);
   backdrop-filter: blur(18px);
   display: none;
   align-items: center;
@@ -473,7 +494,7 @@ a {
   margin-top: 1rem;
   padding: 1rem;
   border-radius: calc(var(--radius) - 6px);
-  background: rgba(251, 204, 231, 0.18);
+  background: rgba(227, 108, 182, 0.12);
   display: none;
 }
 
@@ -533,22 +554,22 @@ a {
   grid-template-columns: minmax(0, 1fr) 120px 130px;
   align-items: center;
   gap: 0.8rem;
-  background: rgba(251, 204, 231, 0.12);
+  background: rgba(255, 255, 255, 0.75);
   border-radius: calc(var(--radius) - 8px);
   padding: 0.75rem 1rem;
 }
 
 .subtopic-difficulty {
-  background: rgba(24, 12, 31, 0.65);
-  border: 1px solid rgba(224, 123, 182, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(227, 108, 182, 0.26);
   border-radius: 10px;
   padding: 0.45rem 0.6rem;
   color: var(--text);
 }
 
 .subtopic-list input[type='date'] {
-  background: rgba(24, 12, 31, 0.65);
-  border: 1px solid rgba(224, 123, 182, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(227, 108, 182, 0.26);
   border-radius: 10px;
   padding: 0.45rem 0.6rem;
   color: var(--text);
@@ -573,13 +594,13 @@ a {
   .nav-links {
     position: absolute;
     inset: 64px 1rem auto 1rem;
-    background: rgba(32, 9, 24, 0.95);
+    background: rgba(255, 236, 246, 0.95);
     border-radius: var(--radius);
     padding: 1rem;
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
-    box-shadow: 0 20px 40px rgba(34, 6, 21, 0.6);
+    box-shadow: 0 20px 40px rgba(227, 108, 182, 0.18);
     display: none;
   }
 
