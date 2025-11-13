@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Progress · StudyFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="progress">
+  <header class="top-nav">
+    <div class="brand">StudyFlow</div>
+    <button class="nav-toggle" aria-label="Toggle navigation" id="navToggle">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" data-page="home">Home</a>
+      <a href="planner.html" data-page="planner">Planner</a>
+      <a href="biology.html" data-page="biology">Biology</a>
+      <a href="pe.html" data-page="pe">PE</a>
+      <a href="progress.html" data-page="progress" class="active">Progress</a>
+      <a href="pastpapers.html" data-page="pastpapers">Past Papers</a>
+      <a href="settings.html" data-page="settings">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="card">
+      <h1>Progress Overview</h1>
+      <div class="progress-grid">
+        <div class="progress-card">
+          <span class="label">Total hours studied</span>
+          <span class="value" id="progressHours">0h</span>
+        </div>
+        <div class="progress-card">
+          <span class="label">Topics completed</span>
+          <span class="value" id="progressTopics">0</span>
+        </div>
+        <div class="progress-card">
+          <span class="label">Subtopics completed</span>
+          <span class="value" id="progressSubtopics">0</span>
+        </div>
+        <div class="progress-card">
+          <span class="label">Predicted grade</span>
+          <span class="value" id="progressGrade">–</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Revision method usage</h2>
+      <div id="methodBreakdown" class="method-breakdown"></div>
+    </section>
+
+    <section class="card">
+      <h2>Study streak</h2>
+      <p class="muted">Keep momentum by logging at least one session every day.</p>
+      <div class="streak-display">
+        <span class="value" id="streakValue">0 days</span>
+        <div class="streak-bar">
+          <div id="streakBar" class="streak-fill"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PE Topics · StudyFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="pe">
+  <header class="top-nav">
+    <div class="brand">StudyFlow</div>
+    <button class="nav-toggle" aria-label="Toggle navigation" id="navToggle">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" data-page="home">Home</a>
+      <a href="planner.html" data-page="planner">Planner</a>
+      <a href="biology.html" data-page="biology">Biology</a>
+      <a href="pe.html" data-page="pe" class="active">PE</a>
+      <a href="progress.html" data-page="progress">Progress</a>
+      <a href="pastpapers.html" data-page="pastpapers">Past Papers</a>
+      <a href="settings.html" data-page="settings">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="card">
+      <h1>PE Topic Explorer</h1>
+      <p class="muted">Review the full AQA specification, record completion and personalise revision difficulty.</p>
+      <div id="peTopicList" class="topic-list"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
