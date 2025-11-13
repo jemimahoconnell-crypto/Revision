@@ -108,7 +108,6 @@
   };
 
   let topicIndex = {};
-  let subtopicIndex = {};
   let studyModal = null;
   let topicModal = null;
   let timerInterval = null;
@@ -168,11 +167,7 @@
             name: sub,
             completed: false,
             difficulty: 'OK',
-            completionDate: '',
-            confidence: 0.6,
-            lastStudied: null,
-            missedSessions: 0,
-            recentPerformance: 0.6
+            completionDate: ''
           }))
         }))
       };
@@ -182,54 +177,15 @@
 
   function buildTopicIndex() {
     topicIndex = {};
-    subtopicIndex = {};
-    let mutated = false;
     Object.entries(state.subjects).forEach(([subjectId, subject]) => {
       subject.topics.forEach((topic) => {
-        if (typeof topic.confidence !== 'number') { topic.confidence = 0.6; mutated = true; }
-        if (typeof topic.recentPerformance !== 'number') { topic.recentPerformance = 0.6; mutated = true; }
-        if (typeof topic.missedSessions !== 'number') { topic.missedSessions = 0; mutated = true; }
         topicIndex[topic.id] = {
           subjectId,
           subjectName: subject.name,
           topic
         };
-        topic.subtopics.forEach((subtopic) => {
-          if (!('lastStudied' in subtopic)) { subtopic.lastStudied = null; mutated = true; }
-          if (typeof subtopic.confidence !== 'number') { subtopic.confidence = 0.6; mutated = true; }
-          if (typeof subtopic.recentPerformance !== 'number') { subtopic.recentPerformance = 0.6; mutated = true; }
-          if (typeof subtopic.missedSessions !== 'number') { subtopic.missedSessions = 0; mutated = true; }
-          subtopicIndex[subtopic.id] = {
-            subjectId,
-            subjectName: subject.name,
-            topic,
-            subtopic
-          };
-        });
       });
     });
-    if (mutated) {
-      persist(STORAGE_KEYS.subjects, state.subjects);
-    }
-  }
-
-  function resolveStudyItem(id) {
-    if (!id) return null;
-    if (subtopicIndex[id]) {
-      return { type: 'subtopic', ...subtopicIndex[id] };
-    }
-    if (topicIndex[id]) {
-      return { type: 'topic', ...topicIndex[id] };
-    }
-    return null;
-  }
-
-  function formatStudyItemName(info) {
-    if (!info) return '';
-    if (info.type === 'subtopic') {
-      return `${info.topic.name} — ${info.subtopic.name}`;
-    }
-    return info.topic.name;
   }
 
   function initNavToggle() {
@@ -432,24 +388,15 @@
     if (!select) return;
     select.innerHTML = '';
     Object.entries(state.subjects).forEach(([subjectId, subject]) => {
+      const group = document.createElement('optgroup');
+      group.label = subject.name;
       subject.topics.forEach((topic) => {
-        const group = document.createElement('optgroup');
-        group.label = `${subject.name} · ${topic.name}`;
-        if (!topic.subtopics.length) {
-          const option = document.createElement('option');
-          option.value = topic.id;
-          option.textContent = topic.name;
-          group.appendChild(option);
-        } else {
-          topic.subtopics.forEach((subtopic) => {
-            const option = document.createElement('option');
-            option.value = subtopic.id;
-            option.textContent = subtopic.name;
-            group.appendChild(option);
-          });
-        }
-        select.appendChild(group);
+        const option = document.createElement('option');
+        option.value = topic.id;
+        option.textContent = topic.name;
+        group.appendChild(option);
       });
+      select.appendChild(group);
     });
   }
 
@@ -468,14 +415,14 @@
     }
 
     todayPlan.forEach((entry) => {
-      const info = resolveStudyItem(entry.topicId);
-      if (!info) return;
+      const topicInfo = topicIndex[entry.topicId];
+      if (!topicInfo) return;
       const item = document.createElement('li');
       item.className = 'list-item';
       item.innerHTML = `
         <div>
-          <strong>${formatStudyItemName(info)}</strong>
-          <span class="muted small">${info.subjectName ? `${info.subjectName} · ` : ''}${entry.duration} mins${entry.isTestPrep ? ' · Test prep' : ''}</span>
+          <strong>${topicInfo.topic.name}</strong>
+          <span class="muted">${entry.duration} mins${entry.isTestPrep ? ' · Test prep' : ''}</span>
         </div>
         <button class="link" type="button">Open</button>
       `;
@@ -502,18 +449,11 @@
       const list = document.createElement('ul');
       list.className = 'simple-list';
       state.plan.days[dateKey].forEach((entry) => {
-        const info = resolveStudyItem(entry.topicId);
-        if (!info) return;
+        const topicInfo = topicIndex[entry.topicId];
+        if (!topicInfo) return;
         const li = document.createElement('li');
-        li.className = 'list-item';
-        li.innerHTML = `
-          <div>
-            <strong>${formatStudyItemName(info)}</strong>
-            <span class="muted small">${info.subjectName ? `${info.subjectName} · ` : ''}${entry.duration} mins${entry.isTestPrep ? ' · Test prep' : ''}</span>
-          </div>
-          <button class="link" type="button">Open</button>
-        `;
-        li.querySelector('button').addEventListener('click', () => openStudyMode(entry.topicId, entry.id));
+        li.textContent = `${topicInfo.topic.name} · ${entry.duration} mins${entry.isTestPrep ? ' (Test prep)' : ''}`;
+        li.addEventListener('click', () => openStudyMode(entry.topicId, entry.id));
         list.appendChild(li);
       });
       dayContainer.appendChild(list);
@@ -598,9 +538,7 @@
       `;
       li.querySelector('[data-action="prep"]').addEventListener('click', () => {
         if (test.topics.length) {
-          const primary = test.topics[0];
-          const target = getPrioritySubtopicId(primary) || primary;
-          openStudyMode(target);
+          openStudyMode(test.topics[0]);
         }
       });
       li.querySelector('[data-action="remove"]').addEventListener('click', () => {
@@ -631,17 +569,7 @@
     sorted.forEach((test) => {
       const li = document.createElement('li');
       const days = Math.max(0, Math.ceil((new Date(test.date) - new Date()) / (1000 * 60 * 60 * 24)));
-      const topics = test.topics
-        .map((id) => topicIndex[id]?.topic.name)
-        .filter(Boolean)
-        .join(', ');
-      li.innerHTML = `
-        <div>
-          <strong>${test.name}</strong>
-          ${topics ? `<div class="muted small">${topics}</div>` : ''}
-        </div>
-        <span class="muted">${days} day${days === 1 ? '' : 's'} left</span>
-      `;
+      li.innerHTML = `<strong>${test.name}</strong> <span class="muted">${days} day${days === 1 ? '' : 's'} left</span>`;
       list.appendChild(li);
     });
   }
@@ -777,7 +705,7 @@
       days: {}
     };
 
-    const subtopics = getSubtopicScores(prioritiseTests);
+    const topics = getTopicScores(prioritiseTests);
 
     for (let i = 0; i < 7; i += 1) {
       const date = new Date(today);
@@ -785,17 +713,17 @@
       const dateKey = formatDateKey(date);
       plan.days[dateKey] = [];
       for (let block = 0; block < blocksPerDay; block += 1) {
-        subtopics.sort((a, b) => b.score - a.score);
-        const chosen = subtopics[0];
+        topics.sort((a, b) => b.score - a.score);
+        const chosen = topics[0];
         if (!chosen || chosen.score <= 0) break;
-        plan.days[dateKey].push({
+        const entry = {
           id: `plan-${dateKey}-${block}`,
-          topicId: chosen.subtopic.id,
-          parentTopicId: chosen.topic.id,
+          topicId: chosen.topic.id,
           duration: blockMinutes,
           isTestPrep: false,
           completed: false
-        });
+        };
+        plan.days[dateKey].push(entry);
         chosen.score *= 0.6;
       }
     }
@@ -813,18 +741,12 @@
         const dateKey = formatDateKey(date);
         if (!plan.days[dateKey]) plan.days[dateKey] = [];
         test.topics.forEach((topicId, idx) => {
-          const topicInfo = topicIndex[topicId];
-          if (!topicInfo) return;
-          const selections = selectTestSubtopics(topicInfo.topic, prioritiseTests, 3);
-          selections.forEach((subSelection, subIdx) => {
-            plan.days[dateKey].push({
-              id: `test-${test.id}-${idx}-${subIdx}`,
-              topicId: subSelection.subtopic.id,
-              parentTopicId: topicInfo.topic.id,
-              duration: 30,
-              isTestPrep: true,
-              completed: false
-            });
+          plan.days[dateKey].push({
+            id: `test-${test.id}-${idx}`,
+            topicId,
+            duration: 30,
+            isTestPrep: true,
+            completed: false
           });
         });
       });
@@ -834,78 +756,42 @@
     persist(STORAGE_KEYS.plan, state.plan);
   }
 
-  function getSubtopicScores(prioritiseTests) {
+  function getTopicScores(prioritiseTests) {
     const today = startOfDay(new Date());
-    const results = [];
-    Object.values(topicIndex).forEach((info) => {
-      info.topic.subtopics.forEach((subtopic) => {
-        const score = calculateSubtopicScore(info.topic, subtopic, today, prioritiseTests);
-        results.push({
-          subjectId: info.subjectId,
-          topic: info.topic,
-          subtopic,
-          score
-        });
+    const settingsMultiplier = prioritiseTests || state.settings.prioritiseTests ? 3 : 1.5;
+    const topics = [];
+    Object.entries(state.subjects).forEach(([subjectId, subject]) => {
+      subject.topics.forEach((topic) => {
+        const completion = computeSubtopicCompletion(topic);
+        const difficulty = averageDifficulty(topic);
+        const daysSince = topic.lastStudied ? Math.max(0, differenceInDays(today, startOfDay(new Date(topic.lastStudied)))) : 14;
+        const confidence = topic.confidence ?? 0.5;
+        const missedWeight = (topic.missedSessions || 0) * 0.5;
+        const performance = topic.recentPerformance ?? 0.6;
+        const testWeight = state.tests.reduce((sum, test) => {
+          if (!test.topics.includes(topic.id)) return sum;
+          const diff = differenceInDays(new Date(test.date), today);
+          if (diff < 0) return sum;
+          const proximity = Math.max(0, (14 - diff) / 14);
+          return sum + proximity * settingsMultiplier;
+        }, 0);
+        const score = (daysSince * 0.4) + (difficulty * 2) + testWeight + ((1 - confidence) * 1.5) + (1 - completion) + missedWeight + ((1 - performance) * 1.2);
+        topics.push({ subjectId, topic, score });
       });
     });
-    return results;
-  }
-
-  function calculateSubtopicScore(topic, subtopic, today, prioritiseTests) {
-    const completion = subtopic.completed ? 1 : 0;
-    const difficulty = DIFFICULTY_WEIGHT[subtopic.difficulty] || 0.6;
-    const subLast = subtopic.lastStudied ? startOfDay(new Date(subtopic.lastStudied)) : null;
-    const topicLast = topic.lastStudied ? startOfDay(new Date(topic.lastStudied)) : null;
-    const daysSince = subLast
-      ? Math.max(0, differenceInDays(today, subLast))
-      : topicLast
-        ? Math.max(0, differenceInDays(today, topicLast)) + 2
-        : 14;
-    const confidence = subtopic.confidence ?? topic.confidence ?? 0.6;
-    const missedWeight = (subtopic.missedSessions || 0) * 0.4 + (topic.missedSessions || 0) * 0.2;
-    const performance = subtopic.recentPerformance ?? topic.recentPerformance ?? 0.6;
-    const parentCompletion = computeSubtopicCompletion(topic);
-    const testWeight = state.tests.reduce((sum, test) => {
-      if (!test.topics.includes(topic.id)) return sum;
-      const diff = differenceInDays(new Date(test.date), today);
-      if (diff < 0) return sum;
-      const proximity = Math.max(0, (14 - diff) / 14);
-      const multiplier = prioritiseTests || state.settings.prioritiseTests ? 3 : 1.5;
-      return sum + proximity * multiplier;
-    }, 0);
-    return (daysSince * 0.35)
-      + (difficulty * 2)
-      + testWeight
-      + ((1 - confidence) * 1.3)
-      + (1 - completion)
-      + missedWeight
-      + ((1 - performance) * 1.1)
-      + ((1 - parentCompletion) * 0.5);
-  }
-
-  function selectTestSubtopics(topic, prioritiseTests, limit = 3) {
-    if (!topic.subtopics.length) return [];
-    const today = startOfDay(new Date());
-    return [...topic.subtopics]
-      .map((subtopic) => ({
-        subtopic,
-        score: calculateSubtopicScore(topic, subtopic, today, prioritiseTests) + (subtopic.completed ? -0.2 : 0)
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.min(limit, topic.subtopics.length));
-  }
-
-  function getPrioritySubtopicId(topicId) {
-    const info = topicIndex[topicId];
-    if (!info) return null;
-    const [top] = selectTestSubtopics(info.topic, state.settings.prioritiseTests, 1);
-    return top?.subtopic.id || null;
+    return topics;
   }
 
   function computeSubtopicCompletion(topic) {
     if (!topic.subtopics.length) return 0;
     const complete = topic.subtopics.filter((sub) => sub.completed).length;
     return complete / topic.subtopics.length;
+  }
+
+  function averageDifficulty(topic) {
+    if (!topic.subtopics.length) return DIFFICULTY_WEIGHT[topic.difficulty] || 0.6;
+    const sum = topic.subtopics.reduce((total, sub) => total + (DIFFICULTY_WEIGHT[sub.difficulty] || 0.6), 0);
+    return sum / topic.subtopics.length;
   }
 
   function countTopicCompletion() {
@@ -1069,8 +955,7 @@
 
     body.querySelector('#topicStart').addEventListener('click', () => {
       closeTopicModal();
-      const target = getPrioritySubtopicId(topic.id) || topic.id;
-      openStudyMode(target);
+      openStudyMode(topic.id);
     });
 
     const confidenceRange = body.querySelector('#confidenceRange');
@@ -1122,12 +1007,11 @@
   }
 
   function openStudyMode(topicId, planEntryId = null) {
-    const info = resolveStudyItem(topicId);
+    const info = topicIndex[topicId];
     if (!info) return;
     activeTopicId = topicId;
     activePlanEntryId = planEntryId;
-    const title = formatStudyItemName(info);
-    document.getElementById('studyTopicName').textContent = title;
+    document.getElementById('studyTopicName').textContent = info.topic.name;
     resetTimer();
     studyModal.classList.add('open');
   }
@@ -1201,7 +1085,7 @@
 
   function logStudySession(methods) {
     if (!activeTopicId) return;
-    const info = resolveStudyItem(activeTopicId);
+    const info = topicIndex[activeTopicId];
     if (!info) return;
     const durationMinutes = (state.settings.timerLength || 25);
     const session = {
@@ -1215,21 +1099,9 @@
     persist(STORAGE_KEYS.sessions, state.sessions);
 
     const topic = info.topic;
-    const performanceBoost = methods.includes('Exam questions') ? 0.12 : 0.06;
-    const confidenceBoost = methods.includes('Teaching someone') ? 0.07 : 0.05;
-
-    if (info.type === 'subtopic') {
-      const subtopic = info.subtopic;
-      subtopic.lastStudied = session.completedAt;
-      subtopic.recentPerformance = Math.min(1, (subtopic.recentPerformance || 0.6) + performanceBoost);
-      subtopic.confidence = Math.min(1, (subtopic.confidence || 0.6) + confidenceBoost);
-      subtopic.missedSessions = Math.max(0, (subtopic.missedSessions || 0) - 1);
-    }
-
     topic.lastStudied = session.completedAt;
-    topic.recentPerformance = Math.min(1, (topic.recentPerformance || 0.6) + (performanceBoost / 2));
-    topic.confidence = Math.min(1, (topic.confidence || 0.6) + (confidenceBoost / 2));
-    topic.missedSessions = Math.max(0, (topic.missedSessions || 0) - 1);
+    topic.recentPerformance = Math.min(1, (topic.recentPerformance || 0.6) + (methods.includes('Exam questions') ? 0.1 : 0.05));
+    topic.confidence = Math.min(1, (topic.confidence || 0.6) + 0.05);
     persist(STORAGE_KEYS.subjects, state.subjects);
 
     if (state.plan && activePlanEntryId) {
@@ -1253,14 +1125,9 @@
       if (dateKey >= todayKey) return;
       entries.forEach((entry) => {
         if (!entry.completed && !entry.missedLogged) {
-          const info = resolveStudyItem(entry.topicId);
+          const info = topicIndex[entry.topicId];
           if (info) {
-            if (info.type === 'subtopic') {
-              info.subtopic.missedSessions = (info.subtopic.missedSessions || 0) + 1;
-              info.topic.missedSessions = (info.topic.missedSessions || 0) + 0.5;
-            } else {
-              info.topic.missedSessions = (info.topic.missedSessions || 0) + 1;
-            }
+            info.topic.missedSessions = (info.topic.missedSessions || 0) + 1;
             entry.missedLogged = true;
           }
         }
