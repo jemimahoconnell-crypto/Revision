@@ -1,1215 +1,1184 @@
-const STORAGE_KEY = 'studyFlowState-v1';
-const DEFAULT_EXAM_DATE = '2026-06-01';
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const SUBJECT_COLOURS = ['#f3cbd3', '#f2d5c3', '#d5c4f2', '#f2e2c3'];
+(function () {
+  const STORAGE_KEYS = {
+    subjects: 'revision_subjects',
+    settings: 'revision_settings',
+    plan: 'revision_plan',
+    tests: 'revision_tests',
+    sessions: 'revision_sessions',
+    pastPapers: 'revision_pastpapers'
+  };
 
-const defaultTopics = {
-  Biology: [
-    'Biological Molecules',
-    'Cells',
-    'Exchange',
-    'DNA, Genes, and Variation',
-    'Energy Transfers',
-    'Responses to Stimuli',
-    'Genetics, Populations, Evolution, Ecosystems',
-    'Control of Gene Expression'
-  ],
-  PE: [
-    'Applied Anatomy & Physiology',
-    'Skill Acquisition',
-    'Sport & Society',
-    'Exercise Physiology',
-    'Biomechanical Movement',
-    'Sport Psychology',
-    'Technology in Sport'
-  ]
-};
+  const REVISION_METHODS = [
+    'Reading notes',
+    'Writing notes',
+    'Blurting',
+    'Flashcards',
+    'Exam questions',
+    'Mind maps',
+    'Teaching someone',
+    'Marking answers'
+  ];
 
-let state = {};
+  const DIFFICULTY_WEIGHT = {
+    Easy: 0.3,
+    OK: 0.6,
+    Hard: 1
+  };
 
-/**
- * Initialise default state for first load.
- */
-function buildDefaultState() {
-  const subjects = {};
-  Object.keys(defaultTopics).forEach((subjectName, index) => {
-    subjects[subjectName] = {
-      id: crypto.randomUUID(),
-      order: index,
-      topics: defaultTopics[subjectName].map((topic, tIndex) => ({
-        id: crypto.randomUUID(),
-        name: topic,
-        weakness: 3,
-        difficultyWeight: 1,
-        examImportance: 3,
-        lastRevised: null,
-        covered: false,
-        confidence: 'medium',
-        timesRevised: 0,
-        subtopics: [],
-        lastMarkedDifficulty: 'none'
-      }))
-    };
-  });
-
-  return {
-    settings: {
-      examDate: DEFAULT_EXAM_DATE,
-      sessionLength: 40,
-      daysPerWeek: 6,
-      availability: {
-        Monday: 2,
-        Tuesday: 2,
-        Wednesday: 2,
-        Thursday: 2,
-        Friday: 1.5,
-        Saturday: 3,
-        Sunday: 2
-      },
-      learningPreference: 'mixed',
-      toggles: {
-        spaced: true,
-        focusWeak: true
-      },
-      targetGrades: {
-        Biology: 'A',
-        PE: 'A'
-      },
-      predictedGrades: {
-        Biology: 'C',
-        PE: 'C'
-      }
+  const BASE_SUBJECTS = {
+    biology: {
+      name: 'Biology',
+      topics: [
+        {
+          name: 'Biological Molecules',
+          subtopics: ['Carbohydrates', 'Lipids', 'Proteins', 'Water', 'Inorganic ions', 'Nucleic acids', 'ATP']
+        },
+        {
+          name: 'Cells',
+          subtopics: ['Cell structure', 'Microscopy', 'Membranes', 'Transport', 'Cell cycle', 'Mitosis', 'Prokaryotes', 'Viruses', 'Immune response']
+        },
+        {
+          name: 'Exchange',
+          subtopics: ['Gas exchange', 'Digestion', 'Absorption', 'Mass transport (animals)', 'Mass transport (plants)']
+        },
+        {
+          name: 'Genetic Information',
+          subtopics: ['DNA', 'Protein synthesis', 'Genetic diversity', 'Natural selection']
+        },
+        {
+          name: 'Energy Transfers',
+          subtopics: ['Photosynthesis', 'Respiration', 'Ecosystems', 'Nutrient cycles']
+        },
+        {
+          name: 'Responses',
+          subtopics: ['Nervous system', 'Muscles', 'Homeostasis']
+        },
+        {
+          name: 'Genetics & Evolution',
+          subtopics: ['Inheritance', 'Populations', 'Evolution']
+        },
+        {
+          name: 'Gene Expression',
+          subtopics: ['Mutations', 'Regulation', 'Recombinant DNA']
+        }
+      ]
     },
-    subjects,
-    tasks: {
-      today: [],
-      weekly: {},
-      lastGenerated: null
-    },
-    progress: {
-      streak: 0,
-      lastCompletionDate: null,
-      hoursHistory: []
-    },
-    pastPapers: {
-      Biology: ['Paper 1', 'Paper 2', 'Paper 3'].map(name => defaultPaperEntry(name)),
-      PE: ['Paper 1', 'Paper 2'].map(name => defaultPaperEntry(name))
+    pe: {
+      name: 'PE',
+      topics: [
+        {
+          name: 'Applied anatomy & physiology',
+          subtopics: ['Cardiovascular system', 'Respiratory system', 'Neuromuscular system', 'Energy systems']
+        },
+        {
+          name: 'Skill acquisition',
+          subtopics: ['Learning theories', 'Skill classification', 'Stages of learning', 'Guidance', 'Feedback']
+        },
+        {
+          name: 'Sport & society',
+          subtopics: ['Socialisation', 'Globalisation', 'Ethics', 'Violence', 'Drugs', 'Deviance']
+        },
+        {
+          name: 'Exercise physiology',
+          subtopics: ['Diet', 'Nutrition', 'Training methods', 'Injuries', 'Rehabilitation']
+        },
+        {
+          name: 'Biomechanics',
+          subtopics: ['Newton’s laws', 'Forces', 'Levers', 'Projectile motion']
+        },
+        {
+          name: 'Sport psychology',
+          subtopics: ['Motivation', 'Arousal', 'Anxiety', 'Aggression', 'Personality', 'Goal setting']
+        },
+        {
+          name: 'Technology in sport',
+          subtopics: ['Data', 'Equipment', 'Analysis', 'Safety', 'Regulations']
+        }
+      ]
     }
   };
-}
 
-function defaultPaperEntry(name) {
-  return {
-    id: crypto.randomUUID(),
-    name,
-    completed: false,
-    markScheme: false,
-    corrections: false,
-    score: '',
-    notes: '',
-    lastUpdated: null
+  const state = {
+    subjects: {},
+    settings: {},
+    plan: null,
+    tests: [],
+    sessions: [],
+    pastPapers: []
   };
-}
 
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return buildDefaultState();
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    // ensure defaults exist if new keys added
-    return mergeState(parsed, buildDefaultState());
-  } catch (error) {
-    console.error('Failed to parse stored state, using defaults', error);
-    return buildDefaultState();
-  }
-}
+  let topicIndex = {};
+  let studyModal = null;
+  let topicModal = null;
+  let timerInterval = null;
+  let timerSeconds = 0;
+  let timerRunning = false;
+  let activeTopicId = null;
+  let activePlanEntryId = null;
+  let methodsPrompt = null;
 
-function mergeState(saved, defaults) {
-  // simple deep merge preserving saved values
-  const merged = structuredClone(defaults);
-  function deepMerge(target, source) {
-    Object.keys(source).forEach(key => {
-      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        target[key] = target[key] || {};
-        deepMerge(target[key], source[key]);
-      } else {
-        if (key in target) {
-          target[key] = source[key];
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init() {
+    loadState();
+    buildTopicIndex();
+    initNavToggle();
+    initStudyModal();
+    initTopicModal();
+    trackMissedSessions();
+    routePage();
+  }
+
+  function loadState() {
+    state.settings = loadFromStorage(STORAGE_KEYS.settings, {
+      dailyHours: 3,
+      timerLength: 25,
+      prioritiseTests: true,
+      examDate: ''
+    });
+
+    state.subjects = loadFromStorage(STORAGE_KEYS.subjects, null);
+    if (!state.subjects) {
+      state.subjects = createDefaultSubjects();
+      persist(STORAGE_KEYS.subjects, state.subjects);
+    }
+
+    state.plan = loadFromStorage(STORAGE_KEYS.plan, null);
+    state.tests = loadFromStorage(STORAGE_KEYS.tests, []);
+    state.sessions = loadFromStorage(STORAGE_KEYS.sessions, []);
+    state.pastPapers = loadFromStorage(STORAGE_KEYS.pastPapers, []);
+  }
+
+  function createDefaultSubjects() {
+    const subjects = {};
+    Object.entries(BASE_SUBJECTS).forEach(([subjectId, subject]) => {
+      subjects[subjectId] = {
+        name: subject.name,
+        topics: subject.topics.map((topic) => ({
+          id: `${subjectId}-${slug(topic.name)}`,
+          name: topic.name,
+          difficulty: 'OK',
+          confidence: 0.6,
+          lastStudied: null,
+          missedSessions: 0,
+          recentPerformance: 0.6,
+          subtopics: topic.subtopics.map((sub) => ({
+            id: `${subjectId}-${slug(topic.name)}-${slug(sub)}`,
+            name: sub,
+            completed: false,
+            difficulty: 'OK',
+            completionDate: ''
+          }))
+        }))
+      };
+    });
+    return subjects;
+  }
+
+  function buildTopicIndex() {
+    topicIndex = {};
+    Object.entries(state.subjects).forEach(([subjectId, subject]) => {
+      subject.topics.forEach((topic) => {
+        topicIndex[topic.id] = {
+          subjectId,
+          subjectName: subject.name,
+          topic
+        };
+      });
+    });
+  }
+
+  function initNavToggle() {
+    const toggle = document.getElementById('navToggle');
+    const nav = document.getElementById('navLinks');
+    if (toggle && nav) {
+      toggle.addEventListener('click', () => {
+        nav.classList.toggle('open');
+      });
+    }
+  }
+
+  function routePage() {
+    const page = document.body.dataset.page;
+    highlightActiveNav();
+    switch (page) {
+      case 'home':
+        renderHome();
+        break;
+      case 'planner':
+        renderPlanner();
+        break;
+      case 'biology':
+        renderSubjectPage('biology', 'biologyTopicList');
+        break;
+      case 'pe':
+        renderSubjectPage('pe', 'peTopicList');
+        break;
+      case 'progress':
+        renderProgress();
+        break;
+      case 'pastpapers':
+        renderPastPapers();
+        break;
+      case 'settings':
+        renderSettings();
+        break;
+      default:
+        break;
+    }
+  }
+
+  function highlightActiveNav() {
+    const page = document.body.dataset.page;
+    const nav = document.getElementById('navLinks');
+    if (!nav) return;
+    nav.querySelectorAll('a').forEach((link) => {
+      const target = link.dataset.page || '';
+      link.classList.toggle('active', target === page);
+    });
+  }
+
+  function renderHome() {
+    populateTopicSelect('homeTopicSelect');
+    renderTodayList('homeTodayList');
+    renderUpcomingTests('homeTests');
+    renderHomeInsights();
+    updatePredictedGrade('predictedGrade');
+
+    const startBtn = document.getElementById('homeStartStudy');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        const select = document.getElementById('homeTopicSelect');
+        if (!select || !select.value) return;
+        openStudyMode(select.value);
+      });
+    }
+  }
+
+  function renderPlanner() {
+    const hoursInput = document.getElementById('plannerHours');
+    const testToggle = document.getElementById('plannerTestPriority');
+    if (hoursInput) hoursInput.value = state.settings.dailyHours;
+    if (testToggle) testToggle.checked = state.settings.prioritiseTests;
+
+    const generateBtn = document.getElementById('generatePlan');
+    if (generateBtn) {
+      generateBtn.addEventListener('click', () => {
+        const hours = parseFloat(hoursInput.value) || state.settings.dailyHours;
+        const prioritise = testToggle.checked;
+        state.settings.dailyHours = hours;
+        state.settings.prioritiseTests = prioritise;
+        persist(STORAGE_KEYS.settings, state.settings);
+        generateAdaptivePlan(hours, prioritise);
+        renderTodayList('plannerToday');
+        renderWeeklySchedule();
+      });
+    }
+
+    renderTodayList('plannerToday');
+    renderWeeklySchedule();
+    setupTestForm();
+  }
+
+  function renderSubjectPage(subjectId, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    const subject = state.subjects[subjectId];
+    if (!subject) return;
+
+    subject.topics.forEach((topic) => {
+      const completion = computeSubtopicCompletion(topic);
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'topic-card';
+      card.dataset.topicId = topic.id;
+      card.innerHTML = `
+        <div class="topic-card__header">
+          <h3>${topic.name}</h3>
+          <span class="badge">${(completion * 100).toFixed(0)}% complete</span>
+        </div>
+        <p class="muted">Confidence ${(topic.confidence * 100).toFixed(0)}%</p>
+      `;
+      card.addEventListener('click', () => openTopicModal(topic.id));
+      container.appendChild(card);
+    });
+  }
+
+  function renderProgress() {
+    const hours = document.getElementById('progressHours');
+    const topicsEl = document.getElementById('progressTopics');
+    const subtopicsEl = document.getElementById('progressSubtopics');
+    const grade = document.getElementById('progressGrade');
+    const streakValue = document.getElementById('streakValue');
+    const streakBar = document.getElementById('streakBar');
+
+    const totalMinutes = state.sessions.reduce((sum, session) => sum + (session.duration || 0), 0);
+    if (hours) hours.textContent = `${(totalMinutes / 60).toFixed(1)}h`;
+
+    const topicStats = countTopicCompletion();
+    if (topicsEl) topicsEl.textContent = topicStats.completedTopics;
+    if (subtopicsEl) subtopicsEl.textContent = topicStats.completedSubtopics;
+    if (grade) grade.textContent = computePredictedGrade();
+
+    renderMethodBreakdown();
+
+    const streak = computeStreak();
+    if (streakValue) streakValue.textContent = `${streak} day${streak === 1 ? '' : 's'}`;
+    if (streakBar) streakBar.style.width = `${Math.min(100, streak * 10)}%`;
+  }
+
+  function renderPastPapers() {
+    const form = document.getElementById('pastPaperForm');
+    if (form) {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const subject = form.querySelector('#paperSubject').value;
+        const paperName = form.querySelector('#paperName').value.trim();
+        const score = form.querySelector('#paperScore').value;
+        if (!paperName) return;
+        const paper = {
+          id: `paper-${Date.now()}`,
+          subject,
+          name: paperName,
+          score: score ? Number(score) : null,
+          completed: false,
+          added: new Date().toISOString()
+        };
+        state.pastPapers.push(paper);
+        persist(STORAGE_KEYS.pastPapers, state.pastPapers);
+        form.reset();
+        renderPastPaperLists();
+      });
+    }
+    renderPastPaperLists();
+  }
+
+  function renderSettings() {
+    const form = document.getElementById('settingsForm');
+    if (!form) return;
+    form.querySelector('#settingsHours').value = state.settings.dailyHours;
+    form.querySelector('#settingsTimer').value = state.settings.timerLength;
+    form.querySelector('#settingsPriority').checked = !!state.settings.prioritiseTests;
+    form.querySelector('#settingsExamDate').value = state.settings.examDate || '';
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      state.settings.dailyHours = parseFloat(form.querySelector('#settingsHours').value) || state.settings.dailyHours;
+      state.settings.timerLength = parseInt(form.querySelector('#settingsTimer').value, 10) || state.settings.timerLength;
+      state.settings.prioritiseTests = form.querySelector('#settingsPriority').checked;
+      state.settings.examDate = form.querySelector('#settingsExamDate').value;
+      persist(STORAGE_KEYS.settings, state.settings);
+      alert('Settings saved.');
+    });
+
+    const clearBtn = document.getElementById('clearAll');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (confirm('This will remove all stored revision data. Continue?')) {
+          Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+          window.location.reload();
         }
-      }
-    });
-    return target;
+      });
+    }
   }
-  return deepMerge(merged, saved);
-}
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function init() {
-  state = loadState();
-  bindNavScrolling();
-  bindHomeActions();
-  bindPlannerActions();
-  bindStudyMode();
-  renderAll();
-}
-
-document.addEventListener('DOMContentLoaded', init);
-
-function renderAll() {
-  renderCountdown();
-  renderTodayGlance();
-  renderPlanner();
-  renderSubjectSections();
-  renderSettings();
-  renderPastPapers();
-  renderProgress();
-}
-
-function bindNavScrolling() {
-  const navLinks = document.querySelectorAll('.nav-link');
-  navLinks.forEach(link => {
-    link.addEventListener('click', e => {
-      e.preventDefault();
-      document.querySelector(link.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+  function populateTopicSelect(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '';
+    Object.entries(state.subjects).forEach(([subjectId, subject]) => {
+      const group = document.createElement('optgroup');
+      group.label = subject.name;
+      subject.topics.forEach((topic) => {
+        const option = document.createElement('option');
+        option.value = topic.id;
+        option.textContent = topic.name;
+        group.appendChild(option);
+      });
+      select.appendChild(group);
     });
-  });
+  }
 
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      const id = entry.target.getAttribute('id');
-      const activeLink = document.querySelector(`.nav-link[href="#${id}"]`);
-      if (entry.isIntersecting) {
-        document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-        if (activeLink) activeLink.classList.add('active');
-      }
-    });
-  }, { threshold: 0.4 });
-
-  document.querySelectorAll('section').forEach(section => observer.observe(section));
-}
-
-function bindHomeActions() {
-  document.getElementById('refreshToday').addEventListener('click', () => {
-    generateTodayPlan();
-    renderPlanner();
-    renderTodayGlance();
-    renderProgress();
-  });
-
-  document.getElementById('whatNext').addEventListener('click', () => {
-    const next = determineNextTask();
-    const suggestion = document.getElementById('nextSuggestion');
-    if (!next) {
-      suggestion.textContent = 'No tasks found — generate a plan to get started.';
+  function renderTodayList(listId) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.innerHTML = '';
+    const today = formatDateKey(new Date());
+    const todayPlan = state.plan?.days?.[today] || [];
+    if (!todayPlan.length) {
+      const empty = document.createElement('li');
+      empty.className = 'muted';
+      empty.textContent = 'No sessions planned yet. Generate a plan to populate this list.';
+      list.appendChild(empty);
       return;
     }
-    suggestion.textContent = `Next: ${next.subject} — ${next.topicName} — ${next.duration} mins of ${next.activity}.`;
-  });
 
-  document.getElementById('editExamDate').addEventListener('click', () => {
-    document.getElementById('settings').scrollIntoView({ behavior: 'smooth' });
-    document.getElementById('examDate').focus();
-  });
-}
+    todayPlan.forEach((entry) => {
+      const topicInfo = topicIndex[entry.topicId];
+      if (!topicInfo) return;
+      const item = document.createElement('li');
+      item.className = 'list-item';
+      item.innerHTML = `
+        <div>
+          <strong>${topicInfo.topic.name}</strong>
+          <span class="muted">${entry.duration} mins${entry.isTestPrep ? ' · Test prep' : ''}</span>
+        </div>
+        <button class="link" type="button">Open</button>
+      `;
+      item.querySelector('button').addEventListener('click', () => openStudyMode(entry.topicId, entry.id));
+      list.appendChild(item);
+    });
+  }
 
-function bindPlannerActions() {
-  document.getElementById('generateWeekly').addEventListener('click', () => {
-    generateWeeklyPlan();
-    renderPlanner();
-  });
-
-  document.getElementById('generateToday').addEventListener('click', () => {
-    generateTodayPlan();
-    renderPlanner();
-    renderTodayGlance();
-    renderProgress();
-  });
-}
-
-function bindStudyMode() {
-  const toggle = document.getElementById('studyModeToggle');
-  const panel = document.getElementById('studyModePanel');
-  toggle.addEventListener('click', () => {
-    const isActive = panel.classList.toggle('active');
-    toggle.textContent = isActive ? 'Exit Study Mode' : 'Study Mode';
-    if (isActive) {
-      document.body.classList.add('study-mode-active');
-    } else {
-      document.body.classList.remove('study-mode-active');
+  function renderWeeklySchedule() {
+    const container = document.getElementById('weeklySchedule');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!state.plan || !state.plan.days) {
+      container.innerHTML = '<p class="muted">Generate a plan to see your upcoming week.</p>';
+      return;
     }
-  });
-}
-
-// Countdown
-function renderCountdown() {
-  const examDateInput = document.getElementById('examDate');
-  if (examDateInput) {
-    examDateInput.value = state.settings.examDate;
+    const sortedDays = Object.keys(state.plan.days).sort();
+    sortedDays.forEach((dateKey) => {
+      const dayContainer = document.createElement('div');
+      dayContainer.className = 'day-column';
+      const date = new Date(dateKey);
+      const formatter = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      dayContainer.innerHTML = `<h3>${formatter.format(date)}</h3>`;
+      const list = document.createElement('ul');
+      list.className = 'simple-list';
+      state.plan.days[dateKey].forEach((entry) => {
+        const topicInfo = topicIndex[entry.topicId];
+        if (!topicInfo) return;
+        const li = document.createElement('li');
+        li.textContent = `${topicInfo.topic.name} · ${entry.duration} mins${entry.isTestPrep ? ' (Test prep)' : ''}`;
+        li.addEventListener('click', () => openStudyMode(entry.topicId, entry.id));
+        list.appendChild(li);
+      });
+      dayContainer.appendChild(list);
+      container.appendChild(dayContainer);
+    });
   }
-  const countdownEl = document.getElementById('countdownTimer');
-  const target = new Date(state.settings.examDate);
-  const diff = target - new Date();
-  if (isNaN(diff)) {
-    countdownEl.textContent = 'Set an exam date.';
-    return;
-  }
-  const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
-  const months = Math.floor(days / 30);
-  const remainingDays = days % 30;
-  countdownEl.textContent = `${months} months ${remainingDays} days`;
-}
 
-function renderTodayGlance() {
-  const todayTasks = state.tasks.today || [];
-  const tasksCount = todayTasks.length;
-  const totalMinutes = todayTasks.reduce((sum, task) => sum + task.duration, 0);
-  const highPriority = todayTasks.filter(task => task.priorityScore >= 6).length;
-  document.getElementById('todayTasksCount').textContent = tasksCount;
-  document.getElementById('todayStudyMinutes').textContent = `${totalMinutes} mins`;
-  document.getElementById('todayHighPriority').textContent = highPriority;
-}
+  function setupTestForm() {
+    const form = document.getElementById('testForm');
+    const subjectSelect = document.getElementById('testSubject');
+    const topicsSelect = document.getElementById('testTopics');
+    if (!form || !subjectSelect || !topicsSelect) return;
 
-// Planner rendering
-function renderPlanner() {
-  const hoursInput = document.getElementById('todayHours');
-  const maxSessionsInput = document.getElementById('maxSessions');
-  hoursInput.value = state.settings.availability[getDayName(new Date())] || 2;
-  maxSessionsInput.value = Math.ceil((hoursInput.value * 60) / state.settings.sessionLength);
+    const populateTopics = () => {
+      const subjectId = subjectSelect.value;
+      topicsSelect.innerHTML = '';
+      const subject = state.subjects[subjectId];
+      if (!subject) return;
+      subject.topics.forEach((topic) => {
+        const option = document.createElement('option');
+        option.value = topic.id;
+        option.textContent = topic.name;
+        topicsSelect.appendChild(option);
+      });
+    };
 
-  renderTodayTasks();
-  renderWeeklyPlan();
-  renderStudyModeList();
-}
+    subjectSelect.addEventListener('change', populateTopics);
+    populateTopics();
 
-function renderTodayTasks() {
-  const list = document.getElementById('todayPlan');
-  list.innerHTML = '';
-  (state.tasks.today || []).forEach(task => {
-    const li = document.createElement('li');
-    li.className = `task-item ${task.status === 'done' ? 'done' : ''}`;
-    li.dataset.id = task.id;
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = task.status === 'done';
-    checkbox.addEventListener('change', () => toggleTaskCompletion(task.id, checkbox.checked));
-
-    const info = document.createElement('div');
-    info.innerHTML = `<strong>${task.subject}</strong> · ${task.topicName}<div class="task-meta">${task.activity} · ${task.duration} mins</div>`;
-
-    const difficulty = document.createElement('div');
-    difficulty.className = 'difficulty-buttons';
-    ['Hard', 'Okay', 'Easy'].forEach(level => {
-      const button = document.createElement('button');
-      button.textContent = level;
-      if (task.difficulty === level.toLowerCase()) {
-        button.classList.add('active');
-      }
-      button.addEventListener('click', () => setTaskDifficulty(task.id, level.toLowerCase()));
-      difficulty.appendChild(button);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = document.getElementById('testName').value.trim();
+      const date = document.getElementById('testDate').value;
+      const subject = subjectSelect.value;
+      const topics = Array.from(topicsSelect.selectedOptions).map((opt) => opt.value);
+      if (!name || !date || !topics.length) return;
+      const test = {
+        id: `test-${Date.now()}`,
+        name,
+        date,
+        subject,
+        topics,
+        created: new Date().toISOString()
+      };
+      state.tests.push(test);
+      persist(STORAGE_KEYS.tests, state.tests);
+      form.reset();
+      populateTopics();
+      renderUpcomingTests('homeTests');
+      renderTestsList();
     });
 
-    const actions = document.createElement('div');
-    actions.className = 'task-actions';
-    actions.appendChild(difficulty);
+    renderTestsList();
+  }
 
-    li.appendChild(checkbox);
-    li.appendChild(info);
-    li.appendChild(actions);
-    list.appendChild(li);
-  });
-}
-
-function renderStudyModeList() {
-  const list = document.getElementById('studyModeList');
-  list.innerHTML = '';
-  (state.tasks.today || []).forEach(task => {
-    const item = document.createElement('li');
-    item.className = 'study-mode-item';
-    const label = document.createElement('span');
-    label.textContent = `${task.subject} – ${task.topicName} (${task.activity}, ${task.duration} mins)`;
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = task.status === 'done';
-    checkbox.addEventListener('change', () => toggleTaskCompletion(task.id, checkbox.checked));
-    item.appendChild(label);
-    item.appendChild(checkbox);
-    list.appendChild(item);
-  });
-}
-
-function renderWeeklyPlan() {
-  const container = document.getElementById('weeklyPlan');
-  container.innerHTML = '';
-  const week = state.tasks.weekly || {};
-  Object.keys(week).sort().forEach(date => {
-    const dayCard = document.createElement('div');
-    dayCard.className = 'week-card';
-    const dayName = new Date(date);
-    const title = document.createElement('h4');
-    title.textContent = `${dayName.toLocaleDateString(undefined, { weekday: 'short' })} ${date}`;
-    dayCard.appendChild(title);
-
-    const list = document.createElement('ul');
-    week[date].forEach(session => {
+  function renderTestsList() {
+    const list = document.getElementById('testsList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!state.tests.length) {
+      const empty = document.createElement('li');
+      empty.className = 'muted';
+      empty.textContent = 'No topic tests scheduled.';
+      list.appendChild(empty);
+      return;
+    }
+    const sorted = [...state.tests].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach((test) => {
       const li = document.createElement('li');
-      li.innerHTML = `<strong>${session.subject}</strong> · ${session.topicName} (${session.activity}, ${session.duration} mins)`;
+      const formatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+      const topics = test.topics.map((id) => topicIndex[id]?.topic.name || id).join(', ');
+      li.innerHTML = `
+        <div>
+          <strong>${test.name}</strong>
+          <span class="muted">${formatter.format(new Date(test.date))} · ${state.subjects[test.subject]?.name || ''}</span>
+          <div class="muted small">${topics}</div>
+        </div>
+        <div class="actions">
+          <button class="link" data-action="prep">Study</button>
+          <button class="link danger" data-action="remove">Remove</button>
+        </div>
+      `;
+      li.querySelector('[data-action="prep"]').addEventListener('click', () => {
+        if (test.topics.length) {
+          openStudyMode(test.topics[0]);
+        }
+      });
+      li.querySelector('[data-action="remove"]').addEventListener('click', () => {
+        state.tests = state.tests.filter((t) => t.id !== test.id);
+        persist(STORAGE_KEYS.tests, state.tests);
+        renderTestsList();
+        renderUpcomingTests('homeTests');
+      });
       list.appendChild(li);
     });
-    dayCard.appendChild(list);
-    container.appendChild(dayCard);
-  });
-}
+  }
 
-// Subject sections
-function renderSubjectSections() {
-  renderAccordion('biologyTopics', 'Biology');
-  renderAccordion('peTopics', 'PE');
-}
-
-function renderAccordion(containerId, subjectName) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  const subject = state.subjects[subjectName];
-  if (!subject) return;
-
-  subject.topics.forEach((topic, index) => {
-    const panel = document.createElement('div');
-    panel.className = 'topic-panel';
-
-    const header = document.createElement('div');
-    header.className = 'topic-header';
-    header.innerHTML = `<h3>${topic.name}</h3><span>${topic.confidence}</span>`;
-    header.addEventListener('click', () => content.classList.toggle('active'));
-
-    const content = document.createElement('div');
-    content.className = 'topic-content';
-
-    const stats = document.createElement('div');
-    stats.className = 'topic-stats';
-    stats.innerHTML = `
-      <div><input type="checkbox" ${topic.covered ? 'checked' : ''} data-topic="${topic.id}" class="topic-covered"> Content covered</div>
-      <div>Last revised: ${topic.lastRevised ? new Date(topic.lastRevised).toLocaleDateString() : 'Never'}</div>
-      <div>Times revised: ${topic.timesRevised || 0}</div>
-    `;
-
-    const subtopicList = document.createElement('ul');
-    subtopicList.className = 'subtopic-list';
-    topic.subtopics.forEach(sub => {
-      const item = document.createElement('li');
-      item.className = 'subtopic-item';
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = sub.covered;
-      checkbox.addEventListener('change', () => {
-        sub.covered = checkbox.checked;
-        if (checkbox.checked) {
-          sub.lastRevised = Date.now();
-        }
-        saveState();
-        renderProgress();
-      });
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = sub.name;
-      input.addEventListener('input', () => {
-        sub.name = input.value;
-        saveState();
-      });
-      const actions = document.createElement('div');
-      actions.className = 'subtopic-actions';
-      const deleteBtn = document.createElement('button');
-      deleteBtn.textContent = '×';
-      deleteBtn.addEventListener('click', () => {
-        topic.subtopics = topic.subtopics.filter(s => s.id !== sub.id);
-        saveState();
-        renderSubjectSections();
-      });
-      actions.appendChild(deleteBtn);
-      item.appendChild(checkbox);
-      item.appendChild(input);
-      item.appendChild(actions);
-      subtopicList.appendChild(item);
-    });
-
-    const addSubtopic = document.createElement('button');
-    addSubtopic.className = 'secondary-btn';
-    addSubtopic.textContent = 'Add subtopic';
-    addSubtopic.addEventListener('click', () => {
-      topic.subtopics.push({
-        id: crypto.randomUUID(),
-        name: 'New subtopic',
-        covered: false,
-        lastRevised: null
-      });
-      saveState();
-      renderSubjectSections();
-    });
-
-    content.appendChild(stats);
-    content.appendChild(subtopicList);
-    content.appendChild(addSubtopic);
-
-    panel.appendChild(header);
-    panel.appendChild(content);
-    container.appendChild(panel);
-  });
-
-  container.querySelectorAll('.topic-covered').forEach(checkbox => {
-    checkbox.addEventListener('change', event => {
-      const topicId = event.target.dataset.topic;
-      const topic = findTopicById(subjectName, topicId);
-      if (topic) {
-        topic.covered = event.target.checked;
-        if (topic.covered) {
-          topic.lastRevised = Date.now();
-          topic.timesRevised = Math.max(topic.timesRevised || 0, 1);
-        }
-        saveState();
-        renderProgress();
-      }
-    });
-  });
-}
-
-function renderSettings() {
-  const examDate = document.getElementById('examDate');
-  examDate.value = state.settings.examDate;
-  examDate.onchange = () => {
-    state.settings.examDate = examDate.value;
-    saveState();
-    renderCountdown();
-  };
-
-  const sessionLength = document.getElementById('sessionLength');
-  sessionLength.value = state.settings.sessionLength;
-  sessionLength.onchange = () => {
-    state.settings.sessionLength = Number(sessionLength.value) || 30;
-    saveState();
-  };
-
-  const daysPerWeek = document.getElementById('daysPerWeek');
-  daysPerWeek.value = state.settings.daysPerWeek;
-  daysPerWeek.onchange = () => {
-    state.settings.daysPerWeek = Number(daysPerWeek.value) || 5;
-    saveState();
-  };
-
-  renderDailyHours();
-  renderSubjectManager();
-  renderGrades();
-
-  const learningPreference = document.getElementById('learningPreference');
-  learningPreference.value = state.settings.learningPreference;
-  learningPreference.onchange = () => {
-    state.settings.learningPreference = learningPreference.value;
-    saveState();
-  };
-
-  const spacedToggle = document.getElementById('spacedToggle');
-  spacedToggle.checked = state.settings.toggles.spaced;
-  spacedToggle.onchange = () => {
-    state.settings.toggles.spaced = spacedToggle.checked;
-    saveState();
-  };
-
-  const weakToggle = document.getElementById('weakToggle');
-  weakToggle.checked = state.settings.toggles.focusWeak;
-  weakToggle.onchange = () => {
-    state.settings.toggles.focusWeak = weakToggle.checked;
-    saveState();
-  };
-
-  document.getElementById('addSubject').onclick = () => {
-    const name = prompt('Subject name');
-    if (!name) return;
-    if (state.subjects[name]) {
-      alert('Subject already exists.');
+  function renderUpcomingTests(listId) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.innerHTML = '';
+    if (!state.tests.length) {
+      const empty = document.createElement('li');
+      empty.className = 'muted';
+      empty.textContent = 'No upcoming tests.';
+      list.appendChild(empty);
       return;
     }
-    state.subjects[name] = {
-      id: crypto.randomUUID(),
-      order: Object.keys(state.subjects).length,
-      topics: []
-    };
-    state.settings.targetGrades[name] = 'A';
-    state.settings.predictedGrades[name] = 'C';
-    saveState();
-    renderAll();
-  };
-}
-
-function renderDailyHours() {
-  const container = document.getElementById('dailyHoursInputs');
-  container.innerHTML = '';
-  DAYS.forEach(day => {
-    const label = document.createElement('label');
-    label.innerHTML = `${day}<input type="number" min="0" step="0.25" value="${state.settings.availability[day] || 0}" />`;
-    const input = label.querySelector('input');
-    input.addEventListener('change', () => {
-      state.settings.availability[day] = Number(input.value) || 0;
-      saveState();
+    const sorted = [...state.tests]
+      .filter((test) => new Date(test.date) >= startOfDay(new Date()))
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 5);
+    sorted.forEach((test) => {
+      const li = document.createElement('li');
+      const days = Math.max(0, Math.ceil((new Date(test.date) - new Date()) / (1000 * 60 * 60 * 24)));
+      li.innerHTML = `<strong>${test.name}</strong> <span class="muted">${days} day${days === 1 ? '' : 's'} left</span>`;
+      list.appendChild(li);
     });
-    container.appendChild(label);
-  });
-}
-
-function renderSubjectManager() {
-  const manager = document.getElementById('subjectsManager');
-  manager.innerHTML = '';
-  Object.keys(state.subjects).forEach(subjectName => {
-    const subject = state.subjects[subjectName];
-    const card = document.createElement('div');
-    card.className = 'subject-card';
-
-    const header = document.createElement('header');
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.value = subjectName;
-    nameInput.addEventListener('change', () => renameSubject(subjectName, nameInput.value));
-    header.appendChild(nameInput);
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.textContent = 'Delete';
-    deleteBtn.addEventListener('click', () => deleteSubject(subjectName));
-    header.appendChild(deleteBtn);
-
-    card.appendChild(header);
-
-    const topicList = document.createElement('div');
-    topicList.className = 'subject-topics';
-    subject.topics.forEach((topic, index) => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'today-stat';
-
-      const nameField = document.createElement('input');
-      nameField.type = 'text';
-      nameField.value = topic.name;
-      nameField.addEventListener('input', () => {
-        topic.name = nameField.value;
-        saveState();
-        renderSubjectSections();
-      });
-
-      const weakness = document.createElement('select');
-      weakness.innerHTML = `
-        <option value="1">Strong</option>
-        <option value="2">Okay</option>
-        <option value="3">Needs work</option>
-        <option value="4">Weak</option>
-        <option value="5">Critical</option>`;
-      weakness.value = topic.weakness || 3;
-      weakness.addEventListener('change', () => {
-        topic.weakness = Number(weakness.value);
-        saveState();
-      });
-
-      const importance = document.createElement('select');
-      importance.innerHTML = `
-        <option value="1">Low importance</option>
-        <option value="2">Medium</option>
-        <option value="3">High</option>
-        <option value="4">Core</option>`;
-      importance.value = topic.examImportance || 3;
-      importance.addEventListener('change', () => {
-        topic.examImportance = Number(importance.value);
-        saveState();
-      });
-
-      const controls = document.createElement('div');
-      controls.className = 'topic-item-controls';
-
-      const up = document.createElement('button');
-      up.textContent = '↑';
-      up.disabled = index === 0;
-      up.addEventListener('click', () => moveTopic(subjectName, index, -1));
-      const down = document.createElement('button');
-      down.textContent = '↓';
-      down.disabled = index === subject.topics.length - 1;
-      down.addEventListener('click', () => moveTopic(subjectName, index, 1));
-      const remove = document.createElement('button');
-      remove.textContent = '×';
-      remove.addEventListener('click', () => {
-        subject.topics.splice(index, 1);
-        saveState();
-        renderSubjectManager();
-        renderSubjectSections();
-      });
-
-      controls.append(up, down, remove);
-      wrapper.appendChild(nameField);
-      wrapper.appendChild(weakness);
-      wrapper.appendChild(importance);
-      wrapper.appendChild(controls);
-      topicList.appendChild(wrapper);
-    });
-
-    const addTopic = document.createElement('button');
-    addTopic.className = 'secondary-btn';
-    addTopic.textContent = 'Add topic';
-    addTopic.addEventListener('click', () => {
-      subject.topics.push({
-        id: crypto.randomUUID(),
-        name: 'New topic',
-        weakness: 3,
-        difficultyWeight: 1,
-        examImportance: 2,
-        lastRevised: null,
-        covered: false,
-        confidence: 'medium',
-        timesRevised: 0,
-        subtopics: [],
-        lastMarkedDifficulty: 'none'
-      });
-      saveState();
-      renderSubjectManager();
-      renderSubjectSections();
-    });
-
-    card.appendChild(topicList);
-    card.appendChild(addTopic);
-    manager.appendChild(card);
-  });
-}
-
-function renderGrades() {
-  const container = document.getElementById('gradeSettings');
-  container.innerHTML = '';
-  Object.keys(state.subjects).forEach(subjectName => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'today-stat';
-    wrapper.style.alignItems = 'flex-start';
-    wrapper.innerHTML = `
-      <div>
-        <strong>${subjectName}</strong>
-        <div>Target grade</div>
-        <input type="text" value="${state.settings.targetGrades[subjectName] || 'A'}" class="target-grade" data-subject="${subjectName}">
-      </div>
-      <div>
-        <div>Predicted grade</div>
-        <input type="text" value="${state.settings.predictedGrades[subjectName] || 'C'}" class="predicted-grade" data-subject="${subjectName}">
-      </div>
-    `;
-    container.appendChild(wrapper);
-  });
-
-  container.querySelectorAll('.target-grade').forEach(input => {
-    input.addEventListener('change', () => {
-      state.settings.targetGrades[input.dataset.subject] = input.value.toUpperCase();
-      saveState();
-      renderProgress();
-    });
-  });
-
-  container.querySelectorAll('.predicted-grade').forEach(input => {
-    input.addEventListener('change', () => {
-      state.settings.predictedGrades[input.dataset.subject] = input.value.toUpperCase();
-      saveState();
-      renderProgress();
-    });
-  });
-}
-
-function renameSubject(oldName, newName) {
-  if (!newName || oldName === newName) return;
-  if (state.subjects[newName]) {
-    alert('A subject with that name already exists.');
-    return;
   }
-  state.subjects[newName] = state.subjects[oldName];
-  delete state.subjects[oldName];
-  state.settings.targetGrades[newName] = state.settings.targetGrades[oldName];
-  state.settings.predictedGrades[newName] = state.settings.predictedGrades[oldName];
-  delete state.settings.targetGrades[oldName];
-  delete state.settings.predictedGrades[oldName];
-  saveState();
-  renderAll();
-}
 
-function deleteSubject(name) {
-  if (!confirm(`Delete ${name}?`)) return;
-  delete state.subjects[name];
-  delete state.settings.targetGrades[name];
-  delete state.settings.predictedGrades[name];
-  saveState();
-  renderAll();
-}
+  function renderHomeInsights() {
+    const hoursEl = document.getElementById('homeHours');
+    const subtopicsEl = document.getElementById('homeSubtopics');
+    const methodsEl = document.getElementById('homeMethods');
 
-function moveTopic(subjectName, index, direction) {
-  const topics = state.subjects[subjectName].topics;
-  const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= topics.length) return;
-  const [moved] = topics.splice(index, 1);
-  topics.splice(newIndex, 0, moved);
-  saveState();
-  renderSubjectManager();
-  renderSubjectSections();
-}
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weeklyMinutes = state.sessions
+      .filter((session) => new Date(session.completedAt) >= weekAgo)
+      .reduce((sum, session) => sum + (session.duration || 0), 0);
+    if (hoursEl) hoursEl.textContent = `${(weeklyMinutes / 60).toFixed(1)}h`;
 
-// Past papers
-function renderPastPapers() {
-  renderPastPaperList('Biology', 'biologyPapers');
-  renderPastPaperList('PE', 'pePapers');
-  renderPastPaperSummary();
-}
+    const stats = countTopicCompletion();
+    if (subtopicsEl) subtopicsEl.textContent = stats.completedSubtopics;
 
-function renderPastPaperList(subjectName, containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-  const papers = state.pastPapers[subjectName] || [];
-  papers.forEach(paper => {
-    const entry = document.createElement('div');
-    entry.className = 'pastpaper-entry';
-    entry.innerHTML = `
-      <strong>${paper.name}</strong>
-      <label><input type="checkbox" ${paper.completed ? 'checked' : ''} data-action="completed"> Completed</label>
-      <label><input type="checkbox" ${paper.markScheme ? 'checked' : ''} data-action="markScheme"> Mark scheme reviewed</label>
-      <label><input type="checkbox" ${paper.corrections ? 'checked' : ''} data-action="corrections"> Mistakes corrected</label>
-      <label>Score (%)<input type="number" min="0" max="100" value="${paper.score}" data-action="score"></label>
-      <label>Notes<textarea data-action="notes">${paper.notes || ''}</textarea></label>
-    `;
-    entry.querySelectorAll('input, textarea').forEach(input => {
-      input.addEventListener('change', () => {
-        const action = input.dataset.action;
-        if (action === 'completed' || action === 'markScheme' || action === 'corrections') {
-          paper[action] = input.checked;
-        } else if (action === 'score') {
-          paper.score = input.value;
-        } else if (action === 'notes') {
-          paper.notes = input.value;
+    if (methodsEl) {
+      const methodsCount = {};
+      state.sessions.forEach((session) => {
+        (session.methods || []).forEach((method) => {
+          methodsCount[method] = (methodsCount[method] || 0) + 1;
+        });
+      });
+      const favourite = Object.entries(methodsCount).sort((a, b) => b[1] - a[1])[0];
+      methodsEl.textContent = favourite ? `${favourite[0]} (${favourite[1]})` : 'Try logging a session';
+    }
+  }
+
+  function updatePredictedGrade(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const grade = computePredictedGrade();
+    el.textContent = `Predicted Grade: ${grade}`;
+  }
+
+  function computePredictedGrade() {
+    const { completedSubtopics, totalSubtopics } = countTopicCompletion();
+    if (!totalSubtopics) return 'N/A';
+    const completionRate = completedSubtopics / totalSubtopics;
+    if (completionRate >= 0.85) return 'A*';
+    if (completionRate >= 0.7) return 'A';
+    if (completionRate >= 0.55) return 'B';
+    if (completionRate >= 0.4) return 'C';
+    if (completionRate >= 0.25) return 'D';
+    return 'E';
+  }
+
+  function renderMethodBreakdown() {
+    const container = document.getElementById('methodBreakdown');
+    if (!container) return;
+    container.innerHTML = '';
+    const counts = {};
+    state.sessions.forEach((session) => {
+      (session.methods || []).forEach((method) => {
+        counts[method] = (counts[method] || 0) + 1;
+      });
+    });
+    if (!Object.keys(counts).length) {
+      container.innerHTML = '<p class="muted">Log a study session to see method insights.</p>';
+      return;
+    }
+    Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([method, total]) => {
+        const row = document.createElement('div');
+        row.className = 'method-row';
+        row.innerHTML = `
+          <span>${method}</span>
+          <div class="method-bar"><span style="width:${Math.min(100, total * 20)}%"></span></div>
+          <span class="count">${total}</span>
+        `;
+        container.appendChild(row);
+      });
+  }
+
+  function renderPastPaperLists() {
+    const biologyList = document.getElementById('biologyPapers');
+    const peList = document.getElementById('pePapers');
+    if (biologyList) populatePaperList(biologyList, 'biology');
+    if (peList) populatePaperList(peList, 'pe');
+  }
+
+  function populatePaperList(list, subjectId) {
+    list.innerHTML = '';
+    const papers = state.pastPapers.filter((paper) => paper.subject === subjectId);
+    if (!papers.length) {
+      const empty = document.createElement('li');
+      empty.className = 'muted';
+      empty.textContent = 'No papers logged yet.';
+      list.appendChild(empty);
+      return;
+    }
+    papers
+      .sort((a, b) => new Date(b.added) - new Date(a.added))
+      .forEach((paper) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div>
+            <strong>${paper.name}</strong>
+            <span class="muted">${paper.score != null ? `${paper.score}%` : 'Score not recorded'}</span>
+          </div>
+          <div class="actions">
+            <label class="toggle small">
+              <input type="checkbox" ${paper.completed ? 'checked' : ''}>
+              <span>${paper.completed ? 'Done' : 'Mark complete'}</span>
+            </label>
+            <button class="link danger" type="button">Remove</button>
+          </div>
+        `;
+        const checkbox = li.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', () => {
+          paper.completed = checkbox.checked;
+          persist(STORAGE_KEYS.pastPapers, state.pastPapers);
+        });
+        li.querySelector('button').addEventListener('click', () => {
+          state.pastPapers = state.pastPapers.filter((p) => p.id !== paper.id);
+          persist(STORAGE_KEYS.pastPapers, state.pastPapers);
+          renderPastPaperLists();
+        });
+        list.appendChild(li);
+      });
+  }
+
+  function generateAdaptivePlan(dailyHours, prioritiseTests) {
+    const blockMinutes = 45;
+    const blocksPerDay = Math.max(1, Math.round((dailyHours * 60) / blockMinutes));
+    const today = startOfDay(new Date());
+    const plan = {
+      generatedAt: new Date().toISOString(),
+      days: {}
+    };
+
+    const topics = getTopicScores(prioritiseTests);
+
+    for (let i = 0; i < 7; i += 1) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      const dateKey = formatDateKey(date);
+      plan.days[dateKey] = [];
+      for (let block = 0; block < blocksPerDay; block += 1) {
+        topics.sort((a, b) => b.score - a.score);
+        const chosen = topics[0];
+        if (!chosen || chosen.score <= 0) break;
+        const entry = {
+          id: `plan-${dateKey}-${block}`,
+          topicId: chosen.topic.id,
+          duration: blockMinutes,
+          isTestPrep: false,
+          completed: false
+        };
+        plan.days[dateKey].push(entry);
+        chosen.score *= 0.6;
+      }
+    }
+
+    if (prioritiseTests) {
+      const upcoming = state.tests.filter((test) => {
+        const diff = differenceInDays(new Date(test.date), today);
+        return diff >= 0 && diff <= 14;
+      });
+      upcoming.forEach((test) => {
+        const diff = Math.max(0, differenceInDays(new Date(test.date), today) - 1);
+        const targetIndex = Math.min(6, diff);
+        const date = new Date(today);
+        date.setDate(date.getDate() + targetIndex);
+        const dateKey = formatDateKey(date);
+        if (!plan.days[dateKey]) plan.days[dateKey] = [];
+        test.topics.forEach((topicId, idx) => {
+          plan.days[dateKey].push({
+            id: `test-${test.id}-${idx}`,
+            topicId,
+            duration: 30,
+            isTestPrep: true,
+            completed: false
+          });
+        });
+      });
+    }
+
+    state.plan = plan;
+    persist(STORAGE_KEYS.plan, state.plan);
+  }
+
+  function getTopicScores(prioritiseTests) {
+    const today = startOfDay(new Date());
+    const settingsMultiplier = prioritiseTests || state.settings.prioritiseTests ? 3 : 1.5;
+    const topics = [];
+    Object.entries(state.subjects).forEach(([subjectId, subject]) => {
+      subject.topics.forEach((topic) => {
+        const completion = computeSubtopicCompletion(topic);
+        const difficulty = averageDifficulty(topic);
+        const daysSince = topic.lastStudied ? Math.max(0, differenceInDays(today, startOfDay(new Date(topic.lastStudied)))) : 14;
+        const confidence = topic.confidence ?? 0.5;
+        const missedWeight = (topic.missedSessions || 0) * 0.5;
+        const performance = topic.recentPerformance ?? 0.6;
+        const testWeight = state.tests.reduce((sum, test) => {
+          if (!test.topics.includes(topic.id)) return sum;
+          const diff = differenceInDays(new Date(test.date), today);
+          if (diff < 0) return sum;
+          const proximity = Math.max(0, (14 - diff) / 14);
+          return sum + proximity * settingsMultiplier;
+        }, 0);
+        const score = (daysSince * 0.4) + (difficulty * 2) + testWeight + ((1 - confidence) * 1.5) + (1 - completion) + missedWeight + ((1 - performance) * 1.2);
+        topics.push({ subjectId, topic, score });
+      });
+    });
+    return topics;
+  }
+
+  function computeSubtopicCompletion(topic) {
+    if (!topic.subtopics.length) return 0;
+    const complete = topic.subtopics.filter((sub) => sub.completed).length;
+    return complete / topic.subtopics.length;
+  }
+
+  function averageDifficulty(topic) {
+    if (!topic.subtopics.length) return DIFFICULTY_WEIGHT[topic.difficulty] || 0.6;
+    const sum = topic.subtopics.reduce((total, sub) => total + (DIFFICULTY_WEIGHT[sub.difficulty] || 0.6), 0);
+    return sum / topic.subtopics.length;
+  }
+
+  function countTopicCompletion() {
+    let completedTopics = 0;
+    let completedSubtopics = 0;
+    let totalSubtopics = 0;
+    Object.values(state.subjects).forEach((subject) => {
+      subject.topics.forEach((topic) => {
+        const completion = computeSubtopicCompletion(topic);
+        totalSubtopics += topic.subtopics.length;
+        completedSubtopics += topic.subtopics.filter((sub) => sub.completed).length;
+        if (completion === 1) {
+          completedTopics += 1;
         }
-        paper.lastUpdated = Date.now();
-        saveState();
-        renderPastPaperSummary();
-        renderProgress();
       });
     });
-    container.appendChild(entry);
-  });
-}
-
-function renderPastPaperSummary() {
-  const summary = document.getElementById('paperSummary');
-  const stats = Object.keys(state.pastPapers).map(subjectName => {
-    const papers = state.pastPapers[subjectName];
-    const completed = papers.filter(p => p.completed).length;
-    const avgScore = papers.length ? Math.round(papers.reduce((acc, p) => acc + (Number(p.score) || 0), 0) / papers.length) : 0;
-    return { subjectName, completed, total: papers.length, avgScore };
-  });
-
-  summary.innerHTML = stats.map(stat => `
-    <div>
-      <strong>${stat.subjectName}</strong>
-      <span>${stat.completed}/${stat.total} completed</span>
-      <span>Average score: ${stat.avgScore}%</span>
-    </div>
-  `).join('');
-}
-
-// Planner generation logic
-function generateTodayPlan() {
-  const today = formatDate(new Date());
-  const hoursInput = Number(document.getElementById('todayHours').value) || state.settings.availability[getDayName(new Date())] || 2;
-  const maxSessionsInput = Number(document.getElementById('maxSessions').value) || Math.ceil((hoursInput * 60) / state.settings.sessionLength);
-  const sessions = buildDailySessions(hoursInput, maxSessionsInput, today);
-  state.tasks.today = sessions;
-  if (!state.tasks.weekly) state.tasks.weekly = {};
-  state.tasks.weekly[today] = sessions;
-  state.tasks.lastGenerated = today;
-  saveState();
-}
-
-function generateWeeklyPlan() {
-  const sessionsPerWeek = {};
-  const start = new Date();
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(start);
-    date.setDate(start.getDate() + i);
-    const dayName = getDayName(date);
-    const hours = state.settings.availability[dayName] || 0;
-    if (hours <= 0) continue;
-    const formatted = formatDate(date);
-    sessionsPerWeek[formatted] = buildDailySessions(hours, Math.ceil((hours * 60) / state.settings.sessionLength), formatted);
-  }
-  state.tasks.weekly = sessionsPerWeek;
-  state.tasks.today = sessionsPerWeek[formatDate(new Date())] || [];
-  state.tasks.lastGenerated = formatDate(new Date());
-  saveState();
-}
-
-function buildDailySessions(hours, maxSessions, date) {
-  const totalMinutes = Math.round(hours * 60);
-  const sessionLength = state.settings.sessionLength;
-  const numberOfSessions = Math.min(maxSessions, Math.max(1, Math.floor(totalMinutes / sessionLength)));
-  const priority = calculatePriorityScores(date);
-  if (!priority.length) return [];
-
-  const distribution = allocateSubjects(numberOfSessions);
-  const sessions = [];
-  const usedTopics = {};
-  distribution.forEach((subjectName, index) => {
-    const topic = pickNextTopic(subjectName, usedTopics, priority, date);
-    if (!topic) return;
-    const activity = chooseActivity(subjectName, topic);
-    const task = {
-      id: crypto.randomUUID(),
-      date,
-      subject: subjectName,
-      topicId: topic.id,
-      topicName: topic.name,
-      duration: sessionLength,
-      activity,
-      priorityScore: topic.priority,
-      status: 'pending',
-      difficulty: topic.lastMarkedDifficulty || 'none',
-      highPriority: topic.priority >= 6
-    };
-    sessions.push(task);
-    usedTopics[topic.id] = (usedTopics[topic.id] || 0) + 1;
-  });
-
-  // If exam practice proportion triggered, add exam tasks
-  const examPracticeCount = distribution.filter(name => name === 'Exam Practice').length;
-  if (examPracticeCount > 0) {
-    const examTasks = buildExamTasks(examPracticeCount, sessionLength);
-    sessions.push(...examTasks);
+    return { completedTopics, completedSubtopics, totalSubtopics };
   }
 
-  return sessions;
-}
-
-function allocateSubjects(numberOfSessions) {
-  const distribution = [];
-  let biologyWeight = 0.5;
-  let peWeight = 0.3;
-  let examWeight = 0.2;
-
-  const pastPaperCompletion = calculatePastPaperCompletion();
-  if (pastPaperCompletion < 0.2) {
-    examWeight = 0.3;
-    biologyWeight = 0.45;
-    peWeight = 0.25;
-  }
-
-  const weaknessScores = getSubjectWeakness();
-  if (weaknessScores.Biology > weaknessScores.PE + 0.15) {
-    biologyWeight += 0.1;
-    peWeight -= 0.05;
-  } else if (weaknessScores.PE > weaknessScores.Biology + 0.15) {
-    peWeight += 0.1;
-    biologyWeight -= 0.05;
-  }
-
-  const subjects = ['Biology', 'PE'];
-  const weights = [biologyWeight, peWeight, examWeight];
-  const names = [...subjects, 'Exam Practice'];
-
-  for (let i = 0; i < numberOfSessions; i++) {
-    const pick = weightedRandom(names, weights);
-    distribution.push(pick);
-  }
-
-  return distribution;
-}
-
-function weightedRandom(names, weights) {
-  const total = weights.reduce((acc, val) => acc + val, 0);
-  const rand = Math.random() * total;
-  let sum = 0;
-  for (let i = 0; i < names.length; i++) {
-    sum += weights[i];
-    if (rand <= sum) return names[i];
-  }
-  return names[0];
-}
-
-function pickNextTopic(subjectName, usedTopics, priorityList, date) {
-  if (!state.subjects[subjectName]) return null;
-  const candidates = priorityList.filter(item => item.subject === subjectName);
-  const sorted = candidates.sort((a, b) => b.priority - a.priority);
-  for (const candidate of sorted) {
-    if ((usedTopics[candidate.id] || 0) >= 1) continue;
-    if (!canScheduleTopic(candidate, date)) continue;
-    return candidate;
-  }
-  return sorted[0] || null;
-}
-
-function canScheduleTopic(topic, date) {
-  if (!state.settings.toggles.spaced) return true;
-  if (!topic.lastRevised) return true;
-  const difficulty = topic.lastMarkedDifficulty || 'okay';
-  const spacing = difficulty === 'hard' ? 1 : difficulty === 'okay' ? 3 : 5;
-  const last = new Date(topic.lastRevised);
-  const current = new Date(date);
-  const diffDays = Math.floor((current - last) / (1000 * 60 * 60 * 24));
-  return diffDays >= spacing;
-}
-
-function chooseActivity(subjectName, topic) {
-  const preference = state.settings.learningPreference;
-  if (preference === 'mixed') {
-    if (!topic.covered) return 'notes';
-    if (topic.timesRevised < 2) return 'active recall';
-    return 'questions';
-  }
-  if (preference === 'notes') {
-    return topic.covered ? 'active recall' : 'notes';
-  }
-  if (preference === 'questions') {
-    return topic.covered ? 'questions' : 'notes';
-  }
-  if (preference === 'active') {
-    return topic.covered ? 'active recall' : 'notes';
-  }
-  return 'notes';
-}
-
-function buildExamTasks(count, duration) {
-  const subjects = Object.keys(state.subjects);
-  const tasks = [];
-  for (let i = 0; i < count; i++) {
-    const subject = subjects[i % subjects.length];
-    tasks.push({
-      id: crypto.randomUUID(),
-      date: formatDate(new Date()),
-      subject: `${subject} Exam Practice`,
-      topicId: 'exam',
-      topicName: 'Past paper questions',
-      duration,
-      activity: 'past paper',
-      priorityScore: 5,
-      status: 'pending',
-      difficulty: 'none',
-      highPriority: true
-    });
-  }
-  return tasks;
-}
-
-function calculatePriorityScores(date) {
-  const list = [];
-  Object.entries(state.subjects).forEach(([subjectName, subject]) => {
-    subject.topics.forEach(topic => {
-      const weaknessWeight = Number(topic.weakness || 3);
-      const daysSinceLast = topic.lastRevised ? Math.floor((new Date(date) - new Date(topic.lastRevised)) / (1000 * 60 * 60 * 24)) : 30;
-      const difficultyWeight = Number(topic.difficultyWeight || 1);
-      const examImportance = Number(topic.examImportance || 2);
-      const spacedBonus = state.settings.toggles.spaced ? Math.min(6, daysSinceLast * 0.2) : 0;
-      const weaknessFactor = state.settings.toggles.focusWeak ? weaknessWeight * 0.8 : weaknessWeight * 0.5;
-      const priority = (weaknessFactor * 2) + (daysSinceLast * 0.3) + (difficultyWeight * 1.5) + (examImportance * 1.2) + spacedBonus;
-      list.push({ ...topic, subject: subjectName, priority });
-    });
-  });
-  return list.sort((a, b) => b.priority - a.priority);
-}
-
-function determineNextTask() {
-  const today = state.tasks.today || [];
-  const pending = today.filter(task => task.status !== 'done');
-  if (pending.length) {
-    return pending.sort((a, b) => b.priorityScore - a.priorityScore)[0];
-  }
-  const futurePriority = calculatePriorityScores(formatDate(new Date()));
-  return futurePriority[0];
-}
-
-// Task completion
-function toggleTaskCompletion(taskId, completed) {
-  const task = state.tasks.today.find(t => t.id === taskId);
-  if (!task) return;
-  task.status = completed ? 'done' : 'pending';
-  if (completed) {
-    const topic = findTopicById(task.subject, task.topicId);
-    if (topic) {
-      topic.lastRevised = Date.now();
-      topic.timesRevised = (topic.timesRevised || 0) + 1;
-      topic.covered = true;
+  function computeStreak() {
+    if (!state.sessions.length) return 0;
+    const sorted = [...state.sessions].sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+    let streak = 0;
+    let currentDate = startOfDay(new Date());
+    for (const session of sorted) {
+      const sessionDate = startOfDay(new Date(session.completedAt));
+      const diff = differenceInDays(currentDate, sessionDate);
+      if (diff === 0) {
+        streak += 1;
+      } else if (diff === 1) {
+        streak += 1;
+        currentDate = sessionDate;
+      } else if (diff > 1) {
+        break;
+      }
     }
-    updateStudyHistory(task.duration);
+    return streak;
   }
-  saveState();
-  renderSubjectSections();
-  renderTodayGlance();
-  renderProgress();
-  renderStudyModeList();
-}
 
-function setTaskDifficulty(taskId, difficulty) {
-  const task = state.tasks.today.find(t => t.id === taskId);
-  if (!task) return;
-  task.difficulty = difficulty;
-  const topic = findTopicById(task.subject, task.topicId);
-  if (!topic) return;
-  topic.lastMarkedDifficulty = difficulty;
-  if (difficulty === 'hard') {
-    topic.difficultyWeight = Math.min(3, (topic.difficultyWeight || 1) + 0.3);
-    topic.confidence = 'low';
-  } else if (difficulty === 'okay') {
-    topic.difficultyWeight = Math.max(0.7, (topic.difficultyWeight || 1) - 0.05);
-    topic.confidence = 'medium';
-  } else if (difficulty === 'easy') {
-    topic.difficultyWeight = Math.max(0.5, (topic.difficultyWeight || 1) - 0.2);
-    topic.confidence = 'high';
-  }
-  saveState();
-  renderSubjectSections();
-  renderProgress();
-  renderTodayTasks();
-  renderStudyModeList();
-}
-
-function findTopicById(subjectName, topicId) {
-  const subject = state.subjects[subjectName];
-  if (!subject) return null;
-  return subject.topics.find(topic => topic.id === topicId);
-}
-
-function updateStudyHistory(duration) {
-  const today = formatDate(new Date());
-  const entry = state.progress.hoursHistory.find(item => item.date === today);
-  if (entry) {
-    entry.minutes += duration;
-  } else {
-    state.progress.hoursHistory.push({ date: today, minutes: duration });
-  }
-  updateStreak(today);
-}
-
-function updateStreak(today) {
-  const last = state.progress.lastCompletionDate;
-  const todayDate = new Date(today);
-  if (!last) {
-    state.progress.streak = 1;
-  } else {
-    const diffDays = Math.floor((todayDate - new Date(last)) / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) {
-      state.progress.streak += 1;
-    } else if (diffDays === 0) {
-      // same day, streak unchanged
-    } else {
-      state.progress.streak = 1;
-    }
-  }
-  state.progress.lastCompletionDate = today;
-  saveState();
-}
-
-// Progress tracker
-function renderProgress() {
-  renderSubjectProgress();
-  renderHoursChart();
-  renderStatus();
-}
-
-function renderSubjectProgress() {
-  const container = document.getElementById('subjectProgress');
-  container.innerHTML = '';
-  Object.entries(state.subjects).forEach(([subjectName, subject]) => {
-    const topics = subject.topics.length || 1;
-    const covered = subject.topics.filter(topic => topic.covered).length;
-    const confident = subject.topics.filter(topic => topic.confidence === 'high').length;
-    const completionPercent = Math.round((covered / topics) * 100);
-    const confidencePercent = Math.round((confident / topics) * 100);
-    const grade = calculatePredictedGrade(subjectName, completionPercent, confidencePercent);
-
-    const item = document.createElement('div');
-    item.className = 'progress-item';
-    item.innerHTML = `
-      <div class="progress-label"><strong>${subjectName}</strong><span>Target ${state.settings.targetGrades[subjectName] || 'A'}</span></div>
-      <div class="progress-bar"><span style="width:${completionPercent}%"></span></div>
-      <small>${completionPercent}% content covered · ${confidencePercent}% confident · Predicted ${grade}</small>
+  function initStudyModal() {
+    if (studyModal) return;
+    studyModal = document.createElement('div');
+    studyModal.id = 'studyModal';
+    studyModal.className = 'modal-overlay';
+    studyModal.innerHTML = `
+      <div class="modal-card">
+        <button class="modal-close" type="button" id="closeStudyModal">×</button>
+        <h2 id="studyTopicName">Study Mode</h2>
+        <div class="timer" id="timerDisplay">25:00</div>
+        <div class="timer-controls">
+          <button class="primary" id="timerStart">Start</button>
+          <button class="secondary" id="timerPause">Pause</button>
+          <button class="secondary" id="timerReset">Reset</button>
+        </div>
+        <button class="link" id="helpToggle" type="button">Revision method ideas</button>
+        <div class="help-panel" id="helpPanel">
+          <ul>
+            ${REVISION_METHODS.map((method) => `<li>${method}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
     `;
-    container.appendChild(item);
-  });
-}
+    document.body.appendChild(studyModal);
 
-function renderHoursChart() {
-  const canvas = document.getElementById('hoursChart');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const history = [...state.progress.hoursHistory].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-7);
-  const maxMinutes = Math.max(60, ...history.map(item => item.minutes));
-  const barWidth = canvas.width / (history.length || 1);
-  history.forEach((entry, index) => {
-    const height = (entry.minutes / maxMinutes) * (canvas.height - 30);
-    ctx.fillStyle = SUBJECT_COLOURS[index % SUBJECT_COLOURS.length];
-    ctx.fillRect(index * barWidth + 10, canvas.height - height - 20, barWidth - 20, height);
-    ctx.fillStyle = '#776b66';
-    ctx.font = '12px Poppins';
-    ctx.fillText(entry.minutes + 'm', index * barWidth + 10, canvas.height - height - 25);
-    ctx.fillText(entry.date.slice(5), index * barWidth + 10, canvas.height - 5);
-  });
-}
+    document.getElementById('closeStudyModal').addEventListener('click', closeStudyMode);
+    document.getElementById('timerStart').addEventListener('click', startTimer);
+    document.getElementById('timerPause').addEventListener('click', pauseTimer);
+    document.getElementById('timerReset').addEventListener('click', resetTimer);
+    document.getElementById('helpToggle').addEventListener('click', () => {
+      document.getElementById('helpPanel').classList.toggle('open');
+    });
 
-function renderStatus() {
-  document.getElementById('streakCount').textContent = `${state.progress.streak || 0} days`;
-  const scores = Object.keys(state.subjects).map(subjectName => calculateSubjectScore(subjectName));
-  const average = scores.reduce((acc, val) => acc + val, 0) / (scores.length || 1);
-  let status = 'On track';
-  if (average < 0.45) status = 'Behind';
-  if (average > 0.7) status = 'Ahead';
-  document.getElementById('onTrackStatus').textContent = status;
-}
+    methodsPrompt = document.createElement('div');
+    methodsPrompt.className = 'modal-overlay hidden';
+    methodsPrompt.innerHTML = `
+      <div class="modal-card">
+        <h3>Session complete!</h3>
+        <p>Select the revision methods you used.</p>
+        <form id="methodsForm" class="methods-form"></form>
+        <div class="actions">
+          <button class="primary" id="methodsConfirm" type="button">Save session</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(methodsPrompt);
+    document.getElementById('methodsConfirm').addEventListener('click', submitMethods);
+    populateMethodsForm();
+  }
 
-function calculateSubjectScore(subjectName) {
-  const subject = state.subjects[subjectName];
-  const topics = subject.topics.length || 1;
-  const covered = subject.topics.filter(topic => topic.covered).length;
-  const confident = subject.topics.filter(topic => topic.confidence === 'high').length;
-  const completion = covered / topics;
-  const confidence = confident / topics;
-  const papers = state.pastPapers[subjectName] || [];
-  const paperCompletion = papers.length ? papers.filter(p => p.completed).length / papers.length : 0;
-  const totalMinutes = state.progress.hoursHistory.reduce((acc, entry) => acc + entry.minutes, 0);
-  const daysActive = new Set(state.progress.hoursHistory.map(entry => entry.date)).size;
-  const consistency = daysActive ? Math.min(1, (state.progress.streak / 14) + (totalMinutes / (daysActive * 60)) * 0.2) : 0;
-  const score = (completion * 0.35) + (paperCompletion * 0.35) + (consistency * 0.3);
-  state.settings.predictedGrades[subjectName] = gradeFromScore(score);
-  return score;
-}
+  function populateMethodsForm() {
+    const form = document.getElementById('methodsForm');
+    if (!form) return;
+    form.innerHTML = '';
+    REVISION_METHODS.forEach((method) => {
+      const label = document.createElement('label');
+      label.className = 'checkbox';
+      label.innerHTML = `<input type="checkbox" value="${method}"> <span>${method}</span>`;
+      form.appendChild(label);
+    });
+  }
 
-function calculatePredictedGrade(subjectName, completionPercent, confidencePercent) {
-  const score = calculateSubjectScore(subjectName);
-  const grade = gradeFromScore(score);
-  return `${grade}`;
-}
+  function initTopicModal() {
+    if (topicModal) return;
+    topicModal = document.createElement('div');
+    topicModal.id = 'topicModal';
+    topicModal.className = 'modal-overlay hidden';
+    topicModal.innerHTML = `
+      <div class="modal-card large">
+        <button class="modal-close" type="button" id="closeTopicModal">×</button>
+        <div id="topicModalBody"></div>
+      </div>
+    `;
+    document.body.appendChild(topicModal);
+    document.getElementById('closeTopicModal').addEventListener('click', closeTopicModal);
+  }
 
-function gradeFromScore(score) {
-  if (score >= 0.85) return 'A*';
-  if (score >= 0.7) return 'A';
-  if (score >= 0.55) return 'B';
-  if (score >= 0.45) return 'C';
-  if (score >= 0.35) return 'D';
-  return 'E';
-}
+  function openTopicModal(topicId) {
+    const info = topicIndex[topicId];
+    if (!info) return;
+    const { topic, subjectName } = info;
+    const body = document.getElementById('topicModalBody');
+    const completion = computeSubtopicCompletion(topic);
+    body.innerHTML = `
+      <header class="topic-modal-header">
+        <div>
+          <p class="muted">${subjectName}</p>
+          <h2>${topic.name}</h2>
+        </div>
+        <button class="primary" id="topicStart" type="button">Start Study Mode</button>
+      </header>
+      <div class="topic-stats">
+        <div><span class="label">Completion</span><span class="value">${(completion * 100).toFixed(0)}%</span></div>
+        <div><span class="label">Confidence</span><span class="value">${Math.round((topic.confidence || 0.5) * 100)}%</span></div>
+        <div><span class="label">Last studied</span><span class="value">${topic.lastStudied ? new Intl.DateTimeFormat().format(new Date(topic.lastStudied)) : 'Not yet'}</span></div>
+      </div>
+      <div class="field-group">
+        <label for="confidenceRange">Confidence level</label>
+        <input type="range" min="0" max="1" step="0.1" id="confidenceRange" value="${topic.confidence || 0.6}">
+      </div>
+      <ul class="subtopic-list">
+        ${topic.subtopics
+          .map(
+            (sub) => `
+              <li data-subtopic="${sub.id}">
+                <label class="checkbox">
+                  <input type="checkbox" ${sub.completed ? 'checked' : ''}>
+                  <span>${sub.name}</span>
+                </label>
+                <select class="subtopic-difficulty">
+                  ${['Easy', 'OK', 'Hard']
+                    .map((diff) => `<option value="${diff}" ${sub.difficulty === diff ? 'selected' : ''}>${diff}</option>`)
+                    .join('')}
+                </select>
+                <input type="date" value="${sub.completionDate || ''}">
+              </li>
+            `
+          )
+          .join('')}
+      </ul>
+    `;
 
-// Helpers
-function formatDate(date) {
-  return date.toISOString().split('T')[0];
-}
+    body.querySelector('#topicStart').addEventListener('click', () => {
+      closeTopicModal();
+      openStudyMode(topic.id);
+    });
 
-function getDayName(date) {
-  return DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1];
-}
+    const confidenceRange = body.querySelector('#confidenceRange');
+    confidenceRange.addEventListener('input', () => {
+      topic.confidence = parseFloat(confidenceRange.value);
+      persist(STORAGE_KEYS.subjects, state.subjects);
+      renderSubjectPage(info.subjectId, `${info.subjectId}TopicList`);
+    });
 
-function calculatePastPaperCompletion() {
-  const all = Object.values(state.pastPapers).flat();
-  if (!all.length) return 0;
-  const completed = all.filter(p => p.completed).length;
-  return completed / all.length;
-}
+    body.querySelectorAll('.subtopic-list li').forEach((row) => {
+      const subId = row.dataset.subtopic;
+      const subtopic = topic.subtopics.find((s) => s.id === subId);
+      if (!subtopic) return;
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      const select = row.querySelector('select');
+      const dateInput = row.querySelector('input[type="date"]');
 
-function getSubjectWeakness() {
-  const result = {};
-  Object.entries(state.subjects).forEach(([name, subject]) => {
-    const average = subject.topics.reduce((acc, topic) => acc + Number(topic.weakness || 3), 0) / (subject.topics.length || 1);
-    result[name] = average / 5;
-  });
-  return result;
-}
+      checkbox.addEventListener('change', () => {
+        subtopic.completed = checkbox.checked;
+        if (checkbox.checked && !dateInput.value) {
+          dateInput.valueAsDate = new Date();
+        }
+        if (!checkbox.checked) {
+          subtopic.completionDate = '';
+        }
+        persist(STORAGE_KEYS.subjects, state.subjects);
+        renderSubjectPage(info.subjectId, `${info.subjectId}TopicList`);
+      });
+
+      select.addEventListener('change', () => {
+        subtopic.difficulty = select.value;
+        persist(STORAGE_KEYS.subjects, state.subjects);
+      });
+
+      dateInput.addEventListener('change', () => {
+        subtopic.completionDate = dateInput.value;
+        subtopic.completed = !!dateInput.value;
+        checkbox.checked = subtopic.completed;
+        persist(STORAGE_KEYS.subjects, state.subjects);
+        renderSubjectPage(info.subjectId, `${info.subjectId}TopicList`);
+      });
+    });
+
+    topicModal.classList.remove('hidden');
+  }
+
+  function closeTopicModal() {
+    topicModal?.classList.add('hidden');
+  }
+
+  function openStudyMode(topicId, planEntryId = null) {
+    const info = topicIndex[topicId];
+    if (!info) return;
+    activeTopicId = topicId;
+    activePlanEntryId = planEntryId;
+    document.getElementById('studyTopicName').textContent = info.topic.name;
+    resetTimer();
+    studyModal.classList.add('open');
+  }
+
+  function closeStudyMode() {
+    studyModal.classList.remove('open');
+    pauseTimer();
+  }
+
+  function startTimer() {
+    if (!activeTopicId) return;
+    if (timerRunning) return;
+    if (timerSeconds === 0) {
+      timerSeconds = (state.settings.timerLength || 25) * 60;
+      updateTimerDisplay();
+    }
+    timerRunning = true;
+    timerInterval = setInterval(() => {
+      timerSeconds -= 1;
+      if (timerSeconds <= 0) {
+        timerSeconds = 0;
+        updateTimerDisplay();
+        pauseTimer();
+        showMethodsPrompt();
+      } else {
+        updateTimerDisplay();
+      }
+    }, 1000);
+  }
+
+  function pauseTimer() {
+    timerRunning = false;
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function resetTimer() {
+    pauseTimer();
+    timerSeconds = (state.settings.timerLength || 25) * 60;
+    updateTimerDisplay();
+  }
+
+  function updateTimerDisplay() {
+    const display = document.getElementById('timerDisplay');
+    if (!display) return;
+    const minutes = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+    const seconds = String(timerSeconds % 60).padStart(2, '0');
+    display.textContent = `${minutes}:${seconds}`;
+  }
+
+  function showMethodsPrompt() {
+    populateMethodsForm();
+    methodsPrompt.classList.remove('hidden');
+    methodsPrompt.classList.add('open');
+  }
+
+  function submitMethods() {
+    const form = document.getElementById('methodsForm');
+    const methods = Array.from(form.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
+    logStudySession(methods);
+    methodsPrompt.classList.add('hidden');
+    methodsPrompt.classList.remove('open');
+    closeStudyMode();
+    renderTodayList('homeTodayList');
+    renderTodayList('plannerToday');
+    renderWeeklySchedule();
+    renderUpcomingTests('homeTests');
+  }
+
+  function logStudySession(methods) {
+    if (!activeTopicId) return;
+    const info = topicIndex[activeTopicId];
+    if (!info) return;
+    const durationMinutes = (state.settings.timerLength || 25);
+    const session = {
+      id: `session-${Date.now()}`,
+      topicId: activeTopicId,
+      duration: durationMinutes,
+      methods,
+      completedAt: new Date().toISOString()
+    };
+    state.sessions.push(session);
+    persist(STORAGE_KEYS.sessions, state.sessions);
+
+    const topic = info.topic;
+    topic.lastStudied = session.completedAt;
+    topic.recentPerformance = Math.min(1, (topic.recentPerformance || 0.6) + (methods.includes('Exam questions') ? 0.1 : 0.05));
+    topic.confidence = Math.min(1, (topic.confidence || 0.6) + 0.05);
+    persist(STORAGE_KEYS.subjects, state.subjects);
+
+    if (state.plan && activePlanEntryId) {
+      Object.values(state.plan.days).forEach((entries) => {
+        entries.forEach((entry) => {
+          if (entry.id === activePlanEntryId) {
+            entry.completed = true;
+          }
+        });
+      });
+      persist(STORAGE_KEYS.plan, state.plan);
+    }
+
+    generateAdaptivePlan(state.settings.dailyHours || 3, state.settings.prioritiseTests);
+  }
+
+  function trackMissedSessions() {
+    if (!state.plan || !state.plan.days) return;
+    const todayKey = formatDateKey(new Date());
+    Object.entries(state.plan.days).forEach(([dateKey, entries]) => {
+      if (dateKey >= todayKey) return;
+      entries.forEach((entry) => {
+        if (!entry.completed && !entry.missedLogged) {
+          const info = topicIndex[entry.topicId];
+          if (info) {
+            info.topic.missedSessions = (info.topic.missedSessions || 0) + 1;
+            entry.missedLogged = true;
+          }
+        }
+      });
+    });
+    persist(STORAGE_KEYS.plan, state.plan);
+    persist(STORAGE_KEYS.subjects, state.subjects);
+  }
+
+  function closeTopicModalOnEscape(event) {
+    if (event.key === 'Escape') {
+      closeStudyMode();
+      closeTopicModal();
+    }
+  }
+
+  document.addEventListener('keydown', closeTopicModalOnEscape);
+
+  function loadFromStorage(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (error) {
+      console.error('Failed to load', key, error);
+      return fallback;
+    }
+  }
+
+  function persist(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function slug(text) {
+    return text
+      .toLowerCase()
+      .replace(/&/g, 'and')
+      .replace(/[^a-z0-9]+/g, '-');
+  }
+
+  function startOfDay(date) {
+    const copy = new Date(date);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
+  }
+
+  function formatDateKey(date) {
+    return startOfDay(date).toISOString().slice(0, 10);
+  }
+
+  function differenceInDays(later, earlier) {
+    const diff = startOfDay(later) - startOfDay(earlier);
+    return Math.round(diff / (1000 * 60 * 60 * 24));
+  }
+})();

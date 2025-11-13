@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planner · StudyFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="planner">
+  <header class="top-nav">
+    <div class="brand">StudyFlow</div>
+    <button class="nav-toggle" aria-label="Toggle navigation" id="navToggle">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" data-page="home">Home</a>
+      <a href="planner.html" data-page="planner" class="active">Planner</a>
+      <a href="biology.html" data-page="biology">Biology</a>
+      <a href="pe.html" data-page="pe">PE</a>
+      <a href="progress.html" data-page="progress">Progress</a>
+      <a href="pastpapers.html" data-page="pastpapers">Past Papers</a>
+      <a href="settings.html" data-page="settings">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="card">
+      <h1>Generate your adaptive plan</h1>
+      <p class="muted">Set your daily commitment and let the algorithm balance syllabus coverage with upcoming topic tests.</p>
+      <div class="planner-controls">
+        <div class="field-group">
+          <label for="plannerHours">Revision hours per day</label>
+          <input type="number" id="plannerHours" min="0" step="0.25">
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="plannerTestPriority">
+          <span>Prioritise topic tests</span>
+        </label>
+        <button class="primary" id="generatePlan">Generate Plan</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Weekly Schedule</h2>
+      <div id="weeklySchedule" class="weekly-schedule"></div>
+    </section>
+
+    <section class="card">
+      <h2>Today&rsquo;s Focus</h2>
+      <ul id="plannerToday" class="simple-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Topic Tests</h2>
+      <form id="testForm" class="form-inline">
+        <div class="field-group">
+          <label for="testName">Test name</label>
+          <input type="text" id="testName" required>
+        </div>
+        <div class="field-group">
+          <label for="testDate">Test date</label>
+          <input type="date" id="testDate" required>
+        </div>
+        <div class="field-group">
+          <label for="testSubject">Subject</label>
+          <select id="testSubject" required>
+            <option value="biology">Biology</option>
+            <option value="pe">PE</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="testTopics">Topics</label>
+          <select id="testTopics" multiple required></select>
+        </div>
+        <button class="secondary" type="submit">Add topic test</button>
+      </form>
+      <ul id="testsList" class="simple-list"></ul>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
