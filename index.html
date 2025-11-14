@@ -3,226 +3,76 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>A-level Revision Planner</title>
+  <title>Jemimah&rsquo;s Revision Planner</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body data-page="home">
   <header class="top-nav">
-    <div class="logo">StudyFlow</div>
-    <nav>
-      <ul id="navLinks">
-        <li><a href="#home" class="nav-link active">Home</a></li>
-        <li><a href="#planner" class="nav-link">Revision Planner</a></li>
-        <li><a href="#biology" class="nav-link">Biology</a></li>
-        <li><a href="#pe" class="nav-link">PE</a></li>
-        <li><a href="#progress" class="nav-link">Progress Tracker</a></li>
-        <li><a href="#pastpapers" class="nav-link">Past Papers</a></li>
-        <li><a href="#settings" class="nav-link">Settings</a></li>
-      </ul>
+    <div class="brand">Jemimah&rsquo;s Revision</div>
+    <button class="nav-toggle" aria-label="Toggle navigation" id="navToggle">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" data-page="home" class="active">Home</a>
+      <a href="planner.html" data-page="planner">Planner</a>
+      <a href="biology.html" data-page="biology">Biology</a>
+      <a href="pe.html" data-page="pe">PE</a>
+      <a href="progress.html" data-page="progress">Progress</a>
+      <a href="pastpapers.html" data-page="pastpapers">Past Papers</a>
+      <a href="settings.html" data-page="settings">Settings</a>
     </nav>
-    <button class="study-mode-toggle" id="studyModeToggle">Study Mode</button>
   </header>
 
-  <main>
-    <section id="home" class="section">
-      <div class="section-header">
-        <h1>Welcome to Your Personal A-Level Planner</h1>
-        <p class="subtle">Adapt your revision journey for Biology and PE in seconds.</p>
+  <main class="page-content">
+    <section class="hero-card">
+      <div>
+        <h1>Welcome back!</h1>
+        <p class="lead">Your adaptive A-level Biology &amp; PE revision hub keeps everything synced across pages and devices.</p>
       </div>
-      <div class="home-grid">
-        <div class="card countdown-card">
-          <h2>Countdown to Exams</h2>
-          <div id="countdownTimer" class="countdown">Loading…</div>
-          <button id="editExamDate" class="link-button">Update exam date in Settings</button>
-        </div>
-        <div class="card today-card">
-          <h2>Today at a glance</h2>
-          <div class="today-stat">
-            <span>Tasks scheduled</span>
-            <strong id="todayTasksCount">0</strong>
-          </div>
-          <div class="today-stat">
-            <span>Total study time</span>
-            <strong id="todayStudyMinutes">0 mins</strong>
-          </div>
-          <div class="today-stat">
-            <span>High priority</span>
-            <strong id="todayHighPriority">0</strong>
-          </div>
-          <button id="refreshToday" class="primary-btn">Generate / Refresh Today’s Plan</button>
-        </div>
-        <div class="card next-task-card">
-          <h2>What should I revise next?</h2>
-          <p id="nextSuggestion">Tap the button to find your next best task.</p>
-          <button id="whatNext" class="secondary-btn">Suggest next task</button>
-        </div>
-      </div>
+      <div class="predicted-grade" id="predictedGrade">Predicted Grade: …</div>
     </section>
 
-    <section id="planner" class="section">
-      <div class="section-header">
-        <h2>Revision Planner</h2>
-        <p>Generate personalised daily and weekly plans that adapt as you work.</p>
-      </div>
-      <div class="planner-controls card">
-        <div class="control-group">
-          <label for="todayHours">Available hours today</label>
-          <input type="number" min="0" step="0.25" id="todayHours" />
+    <section class="card-grid">
+      <article class="card">
+        <h2>Today&rsquo;s Plan</h2>
+        <p class="muted">Focus on the essentials scheduled for today. Tap a subtopic to jump straight into Study Mode.</p>
+        <ul id="homeTodayList" class="simple-list"></ul>
+      </article>
+      <article class="card">
+        <h2>Select a Subtopic</h2>
+        <p class="muted">Choose any subtopic to begin a focused session with the Study Mode timer.</p>
+        <div class="field-group">
+          <label for="homeTopicSelect">Subtopic</label>
+          <select id="homeTopicSelect"></select>
         </div>
-        <div class="control-group">
-          <label for="maxSessions">Max sessions today</label>
-          <input type="number" min="1" id="maxSessions" />
-        </div>
-        <div class="button-row">
-          <button id="generateWeekly" class="secondary-btn">Generate Weekly Plan</button>
-          <button id="generateToday" class="primary-btn">Generate / Refresh Today’s Plan</button>
-        </div>
-      </div>
-      <div class="study-mode-panel" id="studyModePanel">
-        <h3>Today’s Focus Sessions</h3>
-        <ul id="studyModeList" class="study-mode-list"></ul>
-      </div>
-      <div class="planner-grid">
-        <div class="card">
-          <h3>Today’s Plan</h3>
-          <ul id="todayPlan" class="task-list"></ul>
-        </div>
-        <div class="card">
-          <h3>Weekly Timetable</h3>
-          <div id="weeklyPlan" class="weekly-grid"></div>
-        </div>
-      </div>
+        <button class="primary" id="homeStartStudy">Start Study Mode</button>
+      </article>
+      <article class="card">
+        <h2>Upcoming Tests</h2>
+        <p class="muted">Plan ahead with extra preparation blocks automatically added to your schedule.</p>
+        <ul id="homeTests" class="simple-list"></ul>
+      </article>
     </section>
 
-    <section id="biology" class="section">
-      <div class="section-header">
-        <h2>Biology Topics</h2>
-        <p>Track confidence, subtopics and revision history for each unit.</p>
-      </div>
-      <div id="biologyTopics" class="accordion"></div>
-    </section>
-
-    <section id="pe" class="section">
-      <div class="section-header">
-        <h2>PE Topics</h2>
-        <p>Stay on top of AQA PE content and practical prep.</p>
-      </div>
-      <div id="peTopics" class="accordion"></div>
-    </section>
-
-    <section id="progress" class="section">
-      <div class="section-header">
-        <h2>Progress Tracker</h2>
-        <p>Monitor predicted grades, streaks and study consistency.</p>
-      </div>
-      <div class="progress-layout">
-        <div class="card">
-          <h3>Subject Overview</h3>
-          <div id="subjectProgress"></div>
+    <section class="card">
+      <h2>Revision Insights</h2>
+      <div class="insights-grid">
+        <div>
+          <span class="label">Hours studied this week</span>
+          <span class="value" id="homeHours">0h</span>
         </div>
-        <div class="card">
-          <h3>Weekly Study Hours</h3>
-          <canvas id="hoursChart" height="180"></canvas>
+        <div>
+          <span class="label">Subtopics completed</span>
+          <span class="value" id="homeSubtopics">0</span>
         </div>
-        <div class="card">
-          <h3>Consistency & Status</h3>
-          <div class="tracker-stat">
-            <span>Current streak</span>
-            <strong id="streakCount">0 days</strong>
-          </div>
-          <div class="tracker-stat">
-            <span>Status</span>
-            <strong id="onTrackStatus">Loading…</strong>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="pastpapers" class="section">
-      <div class="section-header">
-        <h2>Past Papers</h2>
-        <p>Log scores and reflections to sharpen exam technique.</p>
-      </div>
-      <div class="pastpaper-layout">
-        <div class="card">
-          <h3>AQA Biology</h3>
-          <div id="biologyPapers" class="pastpaper-list"></div>
-        </div>
-        <div class="card">
-          <h3>AQA PE</h3>
-          <div id="pePapers" class="pastpaper-list"></div>
-        </div>
-        <div class="card summary-card">
-          <h3>Summary</h3>
-          <div id="paperSummary"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="settings" class="section">
-      <div class="section-header">
-        <h2>Settings & Customisation</h2>
-        <p>Tailor the planner to your schedule, strengths and goals.</p>
-      </div>
-      <div class="settings-grid">
-        <div class="card">
-          <h3>Exam & Availability</h3>
-          <label>Exam date
-            <input type="date" id="examDate" />
-          </label>
-          <div class="availability-grid">
-            <div>
-              <label>Preferred session length (mins)
-                <input type="number" min="15" step="5" id="sessionLength" />
-              </label>
-            </div>
-            <div>
-              <label>Days per week to revise
-                <input type="number" min="1" max="7" id="daysPerWeek" />
-              </label>
-            </div>
-          </div>
-          <div class="availability-hours">
-            <h4>Hours available per day</h4>
-            <div id="dailyHoursInputs" class="hours-grid"></div>
-          </div>
-        </div>
-        <div class="card">
-          <h3>Subjects & Topics</h3>
-          <div id="subjectsManager"></div>
-          <button id="addSubject" class="secondary-btn">Add Subject</button>
-        </div>
-        <div class="card">
-          <h3>Preferences</h3>
-          <label>Learning preference
-            <select id="learningPreference">
-              <option value="mixed">Mixed</option>
-              <option value="notes">Notes</option>
-              <option value="questions">Practice questions</option>
-              <option value="active">Active recall</option>
-            </select>
-          </label>
-          <label>Spaced Repetition Mode
-            <input type="checkbox" id="spacedToggle" />
-          </label>
-          <label>Focus more on weak topics
-            <input type="checkbox" id="weakToggle" />
-          </label>
-        </div>
-        <div class="card">
-          <h3>Grades</h3>
-          <div id="gradeSettings"></div>
+        <div>
+          <span class="label">Favourite methods</span>
+          <span class="value" id="homeMethods">–</span>
         </div>
       </div>
     </section>
   </main>
-
-  <footer class="footer">
-    <p>Designed for focused A-level revision.</p>
-  </footer>
 
   <script src="script.js"></script>
 </body>

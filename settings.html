@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings · Jemimah&rsquo;s Revision</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="settings">
+  <header class="top-nav">
+    <div class="brand">Jemimah&rsquo;s Revision</div>
+    <button class="nav-toggle" aria-label="Toggle navigation" id="navToggle">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" data-page="home">Home</a>
+      <a href="planner.html" data-page="planner">Planner</a>
+      <a href="biology.html" data-page="biology">Biology</a>
+      <a href="pe.html" data-page="pe">PE</a>
+      <a href="progress.html" data-page="progress">Progress</a>
+      <a href="pastpapers.html" data-page="pastpapers">Past Papers</a>
+      <a href="settings.html" data-page="settings" class="active">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="card">
+      <h1>Global settings</h1>
+      <form id="settingsForm" class="settings-form">
+        <div class="field-group">
+          <label for="settingsHours">Daily revision hours</label>
+          <input type="number" id="settingsHours" min="0" step="0.25">
+        </div>
+        <div class="field-group">
+          <label for="settingsTimer">Study timer length (minutes)</label>
+          <input type="number" id="settingsTimer" min="5" step="5">
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="settingsPriority">
+          <span>Prioritise topic tests automatically</span>
+        </label>
+        <div class="field-group">
+          <label for="settingsExamDate">Exam date</label>
+          <input type="date" id="settingsExamDate">
+        </div>
+        <button type="submit" class="primary">Save settings</button>
+      </form>
+    </section>
+
+    <section class="card warning">
+      <h2>Danger zone</h2>
+      <p>Need a fresh start? This will erase all stored progress, topic data, tests and past papers.</p>
+      <button id="clearAll" class="danger">Clear all data</button>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

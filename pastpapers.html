@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Past Papers · Jemimah&rsquo;s Revision</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="pastpapers">
+  <header class="top-nav">
+    <div class="brand">Jemimah&rsquo;s Revision</div>
+    <button class="nav-toggle" aria-label="Toggle navigation" id="navToggle">☰</button>
+    <nav class="nav-links" id="navLinks">
+      <a href="index.html" data-page="home">Home</a>
+      <a href="planner.html" data-page="planner">Planner</a>
+      <a href="biology.html" data-page="biology">Biology</a>
+      <a href="pe.html" data-page="pe">PE</a>
+      <a href="progress.html" data-page="progress">Progress</a>
+      <a href="pastpapers.html" data-page="pastpapers" class="active">Past Papers</a>
+      <a href="settings.html" data-page="settings">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-content">
+    <section class="card">
+      <h1>Past Paper Library</h1>
+      <p class="muted">Track performance on every practice paper. Mark papers complete to feed into your adaptive priorities.</p>
+      <form id="pastPaperForm" class="form-inline">
+        <div class="field-group">
+          <label for="paperSubject">Subject</label>
+          <select id="paperSubject" required>
+            <option value="biology">Biology</option>
+            <option value="pe">PE</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="paperName">Paper</label>
+          <input type="text" id="paperName" required placeholder="AQA A-level Paper 1">
+        </div>
+        <div class="field-group">
+          <label for="paperScore">Score (%)</label>
+          <input type="number" id="paperScore" min="0" max="100" step="1" placeholder="Optional">
+        </div>
+        <button type="submit" class="secondary">Add past paper</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Biology</h2>
+      <ul id="biologyPapers" class="simple-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>PE</h2>
+      <ul id="pePapers" class="simple-list"></ul>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
